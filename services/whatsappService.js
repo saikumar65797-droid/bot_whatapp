@@ -40,8 +40,11 @@ const sendMessage = async (to, text) => {
     console.log(`✉️ Message sent successfully to ${to} (ID: ${response.data?.messages?.[0]?.id || 'N/A'})`);
     return response.data;
   } catch (error) {
-    const errorDetails = error.response ? JSON.stringify(error.response.data) : error.message;
-    console.error(`❌ Failed to send WhatsApp message to ${to}: ${errorDetails}`);
+    if (error.response) {
+      console.error(`❌ Meta WhatsApp API Error [${error.response.status}]:`, JSON.stringify(error.response.data, null, 2));
+    } else {
+      console.error(`❌ Network/Server Error in sendMessage to ${to}: ${error.message}`);
+    }
     return null;
   }
 };
