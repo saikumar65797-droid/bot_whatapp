@@ -11,7 +11,8 @@ const connectDB = async () => {
       return;
     }
 
-    const conn = await mongoose.connect(connStr);
+    const options = process.env.MONGODB_DB ? { dbName: process.env.MONGODB_DB } : {};
+    const conn = await mongoose.connect(connStr, options);
     console.log(`✅ MongoDB Connected: ${conn.connection.host}/${conn.connection.name}`);
   } catch (error) {
     console.error(`❌ MongoDB Connection Error: ${error.message}`);

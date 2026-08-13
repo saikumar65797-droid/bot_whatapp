@@ -11,9 +11,15 @@ const PORT = process.env.PORT || 5000;
 // Connect to MongoDB
 connectDB();
 
+const path = require('path');
+
 // Body Parser Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Serve Public Static Files (Brochure PDF)
+app.use('/public', express.static(path.join(__dirname, 'public')));
+
 
 // Root Health Check Endpoint
 app.get('/', (req, res) => {

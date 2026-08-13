@@ -1,83 +1,83 @@
-const Customer = require('../models/Customer');
+const CustomerRequest = require('../models/CustomerRequest');
 
 /**
- * Get all customer enquiries
+ * Get all customer requests from customerRequests collection
  * GET /customers
  */
 const getAllCustomers = async (req, res) => {
   try {
-    const customers = await Customer.find().sort({ createdAt: -1 });
+    const requests = await CustomerRequest.find().sort({ createdAt: -1 });
     return res.status(200).json({
       success: true,
-      count: customers.length,
-      data: customers
+      count: requests.length,
+      data: requests
     });
   } catch (error) {
-    console.error('❌ Error fetching customers:', error);
+    console.error('❌ Error fetching customer requests:', error);
     return res.status(500).json({
       success: false,
-      message: 'Failed to retrieve customer enquiries',
+      message: 'Failed to retrieve customer requests',
       error: error.message
     });
   }
 };
 
 /**
- * Get single customer enquiry by ID
+ * Get single customer request by ID
  * GET /customers/:id
  */
 const getCustomerById = async (req, res) => {
   try {
     const { id } = req.params;
-    const customer = await Customer.findById(id);
+    const requestItem = await CustomerRequest.findById(id);
 
-    if (!customer) {
+    if (!requestItem) {
       return res.status(404).json({
         success: false,
-        message: 'Customer enquiry not found'
+        message: 'Customer request not found'
       });
     }
 
     return res.status(200).json({
       success: true,
-      data: customer
+      data: requestItem
     });
   } catch (error) {
-    console.error(`❌ Error fetching customer ${req.params.id}:`, error);
+    console.error(`❌ Error fetching customer request ${req.params.id}:`, error);
     return res.status(500).json({
       success: false,
-      message: 'Failed to retrieve customer enquiry',
+      message: 'Failed to retrieve customer request',
       error: error.message
     });
   }
 };
 
 /**
- * Delete customer enquiry by ID
+ * Delete customer request by ID
  * DELETE /customers/:id
  */
 const deleteCustomer = async (req, res) => {
   try {
     const { id } = req.params;
-    const customer = await Customer.findByIdAndDelete(id);
+    const requestItem = await CustomerRequest.findByIdAndDelete(id);
 
-    if (!customer) {
+    if (!requestItem) {
       return res.status(404).json({
         success: false,
-        message: 'Customer enquiry not found'
+        message: 'Customer request not found'
       });
     }
 
     return res.status(200).json({
       success: true,
-      message: 'Customer enquiry deleted successfully',
-      data: customer
+      message: 'Customer request deleted successfully',
+      data: requestItem
     });
   } catch (error) {
-    console.error(`❌ Error deleting customer ${req.params.id}:`, error);
+    console.error(`❌ Error deleting customer request ${req.params.id}:`, error);
     return res.status(500).json({
       success: false,
-      message: 'Failed to delete customer enquiry',
+      message: 'Failed to delete customer request',
       error: error.message
     });
   }
