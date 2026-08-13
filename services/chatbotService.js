@@ -1,4 +1,8 @@
-const { sendMessage, sendButtonsMessage, sendListMessage, sendDocumentMessage } = require('./whatsappService');
+const whatsappService = require('./whatsappService');
+const sendMessage = (...args) => whatsappService.sendMessage(...args);
+const sendButtonsMessage = (...args) => whatsappService.sendButtonsMessage(...args);
+const sendListMessage = (...args) => whatsappService.sendListMessage(...args);
+const sendDocumentMessage = (...args) => whatsappService.sendDocumentMessage(...args);
 const { findMatchingCompanyProfile, normalizeMobile, normalizeEmail } = require('./companyProfileService');
 const { createTicket } = require('./ticketService');
 const { createMachineRequest } = require('./machineRequestService');
@@ -191,6 +195,28 @@ const processIncomingMessage = async (from, messageData) => {
   // If new conversation or explicit restart trigger, start at Greeting
   if (!currentState || !currentState.state || isRestartTrigger) {
     await sendInitialGreeting(from);
+    return;
+  }
+
+  // Handle explicit Contact Team action
+  if (buttonId === 'contact_team' || lowerText === 'contact team' || lowerText === 'contact_team') {
+    const contactMsg =
+      'No problem. Please contact our support team directly:\n\n' +
+      '📞 +91-70759 24366\n' +
+      '✉️ceo@sruthitechnologies.com\n\n' +
+      "They'll be happy to assist you";
+    await sendMessage(from, contactMsg);
+    clearUserState(from);
+    return;
+  }
+
+  // Handle Retry Verification action
+  if (buttonId === 'retry_verification' || lowerText === 'try again' || lowerText === 'retry') {
+    setUserState(from, {
+      state: STATES.WAITING_REGISTERED_MOBILE,
+      customer_type: 'EXISTING'
+    });
+    await sendMessage(from, 'Please enter your registered mobile number.');
     return;
   }
 

@@ -3,7 +3,7 @@ require('dotenv').config();
  * Automated Test Suite for Upgraded WhatsApp Chatbot Logic
  */
 const { normalizeMobile, normalizeEmail } = require('../services/companyProfileService');
-const { STATES } = require('../services/chatbotService');
+const { STATES, processIncomingMessage } = require('../services/chatbotService');
 const { getUserState, setUserState, clearUserState } = require('../utils/userState');
 const connectDB = require('../config/mongo');
 const { generateTicketId } = require('../services/ticketService');
@@ -39,6 +39,36 @@ async function runTests() {
   setUserState(testPhone, { state: STATES.WAITING_CUSTOMER_TYPE });
   assert(getUserState(testPhone).state === STATES.WAITING_CUSTOMER_TYPE, 'setUserState updates state');
   clearUserState(testPhone);
+
+  // Test 3.5: Contact Team & Retry Verification Handlers
+  const whatsappService = require('../services/whatsappService');
+  let lastSentMessage = null;
+  const originalSendMessage = whatsappService.sendMessage;
+  whatsappService.sendMessage = async (to, text) => {
+    lastSentMessage = text;
+    return { mock: true };
+  };
+
+  // Contact Team Button Test
+  setUserState(testPhone, { state: STATES.WAITING_REGISTERED_MOBILE });
+  await processIncomingMessage(testPhone, { buttonId: 'contact_team' });
+  assert(getUserState(testPhone) === null, 'Contact team button clears user state');
+  assert(
+    lastSentMessage && lastSentMessage.includes('No problem. Please contact our support team directly:'),
+    'Contact team button sends correct support contact message'
+  );
+
+  // Retry Verification Button Test
+  setUserState(testPhone, { state: STATES.WAITING_REGISTERED_MOBILE });
+  await processIncomingMessage(testPhone, { buttonId: 'retry_verification' });
+  assert(getUserState(testPhone).state === STATES.WAITING_REGISTERED_MOBILE, 'Retry verification sets state to WAITING_REGISTERED_MOBILE');
+  assert(
+    lastSentMessage === 'Please enter your registered mobile number.',
+    'Retry verification sends registered mobile prompt'
+  );
+
+  // Restore original function
+  whatsappService.sendMessage = originalSendMessage;
 
   // Test 4: Database Connection & ID Generators
   await connectDB();
