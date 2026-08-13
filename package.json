@@ -1,7 +1,7 @@
 {
-  "name": "commas-whatsapp-chatbot",
+  "name": "sruthi-whatsapp-chatbot",
   "version": "1.0.0",
-  "description": "Production-ready WhatsApp Chatbot for Commas Engineering customer enquiry collection",
+  "description": "Production-ready WhatsApp Chatbot for Sruthi Technologies customer enquiry collection",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -12,9 +12,9 @@
     "chatbot",
     "express",
     "mongodb",
-    "commas-engineering"
+    "sruthi-technologies"
   ],
-  "author": "Commas Engineering",
+  "author": "Sruthi Technologies",
   "license": "ISC",
   "dependencies": {
     "axios": "^1.7.9",

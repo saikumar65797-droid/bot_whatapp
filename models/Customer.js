@@ -35,7 +35,8 @@ const customerSchema = new mongoose.Schema(
     }
   },
   {
-    timestamps: true
+    timestamps: true,
+    collection: 'users'
   }
 );
 

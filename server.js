@@ -19,7 +19,7 @@ app.use(express.urlencoded({ extended: true }));
 app.get('/', (req, res) => {
   res.status(200).json({
     status: 'online',
-    service: 'Commas Engineering WhatsApp Chatbot Service',
+    service: 'Sruthi Technologies WhatsApp Chatbot Service',
     timestamp: new Date().toISOString()
   });
 });
@@ -48,5 +48,5 @@ app.use((err, req, res, next) => {
 
 // Start Express HTTP Server
 app.listen(PORT, () => {
-  console.log(`🚀 Commas Engineering WhatsApp Chatbot Server running on port ${PORT}`);
+  console.log(`🚀 Sruthi Technologies WhatsApp Chatbot Server running on port ${PORT}`);
 });
