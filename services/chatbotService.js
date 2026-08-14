@@ -863,7 +863,7 @@ const processIncomingMessage = async (from, messageData) => {
       const leadId = currentState.lead_id;
 
       if (isBrochureYes) {
-        const brochureUrl = process.env.BROCHURE_URL || 'http://localhost:5000/public/Sruthi_Technologies_Brochure.pdf';
+        const brochureUrl = process.env.BROCHURE_URL || 'https://sruthi-whatsapp-chatbot.onrender.com/public/Sruthi_Technologies_Brochure.pdf';
         
         // 1. Send Document Message via WhatsApp Cloud API
         await sendDocumentMessage(
