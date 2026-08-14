@@ -362,7 +362,7 @@ const processIncomingMessage = async (from, messageData) => {
         const serviceText = 'How can we help you today?';
         const buttons = [
           { id: 'service_raise_ticket', title: 'Raise a Ticket' },
-          { id: 'service_add_machine', title: 'Request a New Machine' }
+          { id: 'service_add_machine', title: 'Request New Machine' }
         ];
         await sendButtonsMessage(from, serviceText, buttons);
         return;
