@@ -783,13 +783,13 @@ const processIncomingMessage = async (from, messageData) => {
         new_email: normEmail
       });
 
-      await sendMessage(from, 'Please enter your factory/company name.');
+      await sendMessage(from, 'Please enter your company name.');
       break;
     }
 
     case STATES.WAITING_FACTORY_NAME: {
       if (!text) {
-        await sendMessage(from, 'Please enter your factory/company name.');
+        await sendMessage(from, 'Please enter your company name.');
         return;
       }
 
@@ -798,13 +798,13 @@ const processIncomingMessage = async (from, messageData) => {
         factory_name: text
       });
 
-      await sendMessage(from, 'Please enter your factory/address.');
+      await sendMessage(from, 'Please enter your company address.');
       break;
     }
 
     case STATES.WAITING_ADDRESS: {
       if (!text) {
-        await sendMessage(from, 'Please enter your factory/address.');
+        await sendMessage(from, 'Please enter your company address.');
         return;
       }
 
