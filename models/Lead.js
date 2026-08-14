@@ -40,6 +40,11 @@ const leadSchema = new mongoose.Schema(
       type: String,
       default: 'NON_EXISTING'
     },
+    requestType: {
+      type: String,
+      enum: ['New Machine Required', 'Enquiry'],
+      default: 'Enquiry'
+    },
     source: {
       type: String,
       default: 'WhatsApp'

@@ -45,6 +45,10 @@ const requestTableSchema = new mongoose.Schema(
       type: Number,
       required: true
     },
+    capacityRequired: {
+      type: String,
+      required: true
+    },
     grainType: {
       type: String,
       required: true

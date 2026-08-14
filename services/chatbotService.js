@@ -26,7 +26,9 @@ const STATES = {
   WAITING_MACHINE_TYPE: 'WAITING_MACHINE_TYPE',
   WAITING_MACHINE_MODEL: 'WAITING_MACHINE_MODEL',
   WAITING_NUMBER_OF_CHUTES: 'WAITING_NUMBER_OF_CHUTES',
+  WAITING_CAPACITY_REQUIRED: 'WAITING_CAPACITY_REQUIRED',
   WAITING_GRAIN_TYPE: 'WAITING_GRAIN_TYPE',
+  WAITING_NEW_CUSTOMER_REQUEST_TYPE: 'WAITING_NEW_CUSTOMER_REQUEST_TYPE',
   WAITING_NEW_CUSTOMER_NAME: 'WAITING_NEW_CUSTOMER_NAME',
   WAITING_NEW_CUSTOMER_MOBILE: 'WAITING_NEW_CUSTOMER_MOBILE',
   WAITING_NEW_CUSTOMER_EMAIL: 'WAITING_NEW_CUSTOMER_EMAIL',
@@ -130,6 +132,17 @@ const sendChutesOptions = async (from) => {
 };
 
 /**
+ * Helper to prompt Request Type options for non-existing customers
+ */
+const sendNewCustomerRequestTypeOptions = async (from) => {
+  const buttons = [
+    { id: 'req_type_new_machine', title: 'New Machine Required' },
+    { id: 'req_type_enquiry', title: 'Enquiry' }
+  ];
+  await sendButtonsMessage(from, 'Please select your requirement:', buttons);
+};
+
+/**
  * Parse Machine Type ID or return raw text
  */
 const parseMachineType = (text, buttonId) => {
@@ -153,13 +166,14 @@ const parseMachineType = (text, buttonId) => {
  */
 const parseMachineModel = (text, buttonId) => {
   const map = {
-    'mmodel_others': 'Others',
+    
     'mmodel_rgbs': 'RGBS',
     'mmodel_ultima': 'Ultima',
     'mmodel_ultra_s': 'Ultra S',
     'mmodel_ultra_si': 'Ultra SI',
     'mmodel_falcon': 'FALCON',
-    'mmodel_fcs': 'FCS'
+    'mmodel_fcs': 'FCS',
+    'mmodel_others': 'Others'
   };
   return map[buttonId] || text;
 };
@@ -239,12 +253,12 @@ const processIncomingMessage = async (from, messageData) => {
       }
 
       if (isNew) {
-        // Non-Existing Customer Flow -> Start Lead capture
+        // Non-Existing Customer Flow -> Ask Request Type first
         setUserState(from, {
-          state: STATES.WAITING_NEW_CUSTOMER_NAME,
+          state: STATES.WAITING_NEW_CUSTOMER_REQUEST_TYPE,
           customer_type: 'NON_EXISTING'
         });
-        await sendMessage(from, 'Please enter your name.');
+        await sendNewCustomerRequestTypeOptions(from);
         return;
       }
 
@@ -348,7 +362,7 @@ const processIncomingMessage = async (from, messageData) => {
         const serviceText = 'How can we help you today?';
         const buttons = [
           { id: 'service_raise_ticket', title: 'Raise a Ticket' },
-          { id: 'service_add_machine', title: 'Add a New Machine' }
+          { id: 'service_add_machine', title: 'Request a New Machine' }
         ];
         await sendButtonsMessage(from, serviceText, buttons);
         return;
@@ -625,8 +639,23 @@ const processIncomingMessage = async (from, messageData) => {
       }
 
       setUserState(from, {
-        state: STATES.WAITING_GRAIN_TYPE,
+        state: STATES.WAITING_CAPACITY_REQUIRED,
         number_of_chutes: chutesCount
+      });
+
+      await sendMessage(from, 'Please enter the required capacity (e.g., 5 Tons/Hour).');
+      break;
+    }
+
+    case STATES.WAITING_CAPACITY_REQUIRED: {
+      if (!text) {
+        await sendMessage(from, 'Please enter the required capacity (e.g., 5 Tons/Hour).');
+        return;
+      }
+
+      setUserState(from, {
+        state: STATES.WAITING_GRAIN_TYPE,
+        capacity_required: text
       });
 
       await sendMessage(from, 'Please enter the grain type.');
@@ -648,7 +677,8 @@ const processIncomingMessage = async (from, messageData) => {
         district,
         machine_type,
         machine_model,
-        number_of_chutes
+        number_of_chutes,
+        capacity_required
       } = currentState;
 
       try {
@@ -662,6 +692,7 @@ const processIncomingMessage = async (from, messageData) => {
           machineType: machine_type,
           machineModel: machine_model,
           numberOfChutes: number_of_chutes,
+          capacityRequired: capacity_required,
           grainType: text
         });
 
@@ -682,6 +713,29 @@ const processIncomingMessage = async (from, messageData) => {
     // ----------------------------------------------------
     // NON-EXISTING CUSTOMER (LEAD ENQUIRY) FLOW
     // ----------------------------------------------------
+    case STATES.WAITING_NEW_CUSTOMER_REQUEST_TYPE: {
+      let reqType = 'Enquiry';
+      const isNewMachine = buttonId === 'req_type_new_machine' || lowerText.includes('machine') || lowerText === '1';
+      const isEnquiry = buttonId === 'req_type_enquiry' || lowerText.includes('enquiry') || lowerText === '2';
+
+      if (isNewMachine) {
+        reqType = 'New Machine Required';
+      } else if (isEnquiry) {
+        reqType = 'Enquiry';
+      } else {
+        await sendNewCustomerRequestTypeOptions(from);
+        return;
+      }
+
+      setUserState(from, {
+        state: STATES.WAITING_NEW_CUSTOMER_NAME,
+        request_type: reqType
+      });
+
+      await sendMessage(from, 'Please enter your name.');
+      break;
+    }
+
     case STATES.WAITING_NEW_CUSTOMER_NAME: {
       if (!text) {
         await sendMessage(from, 'Please enter your name.');
@@ -771,7 +825,7 @@ const processIncomingMessage = async (from, messageData) => {
         return;
       }
 
-      const { new_name, new_mobile, new_email, factory_name, address } = currentState;
+      const { new_name, new_mobile, new_email, factory_name, address, request_type } = currentState;
 
       try {
         const leadDoc = await createLead({
@@ -780,7 +834,8 @@ const processIncomingMessage = async (from, messageData) => {
           email: new_email,
           factoryName: factory_name,
           address: address,
-          machineType: selectedMachineType
+          machineType: selectedMachineType,
+          requestType: request_type || 'Enquiry'
         });
 
         setUserState(from, {
