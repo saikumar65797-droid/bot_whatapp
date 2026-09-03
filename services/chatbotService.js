@@ -838,34 +838,9 @@ const processIncomingMessage = async (from, messageData) => {
           requestType: request_type || 'Enquiry'
         });
 
-        setUserState(from, {
-          state: STATES.WAITING_BROCHURE_CONFIRMATION,
-          lead_id: leadDoc.leadId
-        });
-
-        const brochureText = 'Would you like to receive our machine brochure?';
-        const buttons = [
-          { id: 'brochure_yes', title: 'Yes' },
-          { id: 'brochure_no', title: 'No' }
-        ];
-
-        await sendButtonsMessage(from, brochureText, buttons);
-      } catch (err) {
-        console.error('❌ Error creating lead:', err);
-        await sendMessage(from, 'An error occurred while saving your enquiry. Please try again later.');
-      }
-      break;
-    }
-
-    case STATES.WAITING_BROCHURE_CONFIRMATION: {
-      const isBrochureYes = buttonId === 'brochure_yes' || ['yes', 'y', '1'].includes(lowerText);
-      const isBrochureNo = buttonId === 'brochure_no' || ['no', 'n', '2'].includes(lowerText);
-      const leadId = currentState.lead_id;
-
-      if (isBrochureYes) {
         const brochureUrl = process.env.BROCHURE_URL || 'https://sruthi-whatsapp-chatbot.onrender.com/public/Sruthi_Technologies_Brochure.pdf';
         
-        // 1. Send Document Message via WhatsApp Cloud API
+        // 1. Send Document Message via WhatsApp Cloud API automatically
         await sendDocumentMessage(
           from,
           brochureUrl,
@@ -875,39 +850,45 @@ const processIncomingMessage = async (from, messageData) => {
 
         // 2. ALSO send a direct text message confirmation with brochure details & website link
         const confirmationMsg =
-          'Thank you! 📄\n\n' +
-          'Our official Sruthi Technologies Product Catalog & Brochure has been sent.\n\n' +
+          'Thank you for sharing your details! 🙏\n\n' +
+          'Our official Sruthi Technologies Product Catalog & Brochure has been sent above. 📄\n\n' +
           'You can also visit our official website:\n' +
           '🌐 https://www.sruthitechnologies.com\n\n' +
           'Our team will contact you soon for further assistance.';
 
         await sendMessage(from, confirmationMsg);
 
-        if (leadId) {
-          await updateLeadBrochureStatus(leadId, true, true);
+        if (leadDoc && leadDoc.leadId) {
+          await updateLeadBrochureStatus(leadDoc.leadId, true, true);
         }
 
         clearUserState(from);
-        return;
+      } catch (err) {
+        console.error('❌ Error creating lead:', err);
+        await sendMessage(from, 'An error occurred while saving your enquiry. Please try again later.');
       }
+      break;
+    }
 
-      if (isBrochureNo) {
-        if (leadId) {
-          await updateLeadBrochureStatus(leadId, false, false);
-        }
-
-        await sendMessage(from, 'Thank you for sharing your details. 🙏\n\nOur team will contact you very soon.');
-        clearUserState(from);
-        return;
+    case STATES.WAITING_BROCHURE_CONFIRMATION: {
+      const brochureUrl = process.env.BROCHURE_URL || 'https://sruthi-whatsapp-chatbot.onrender.com/public/Sruthi_Technologies_Brochure.pdf';
+      await sendDocumentMessage(
+        from,
+        brochureUrl,
+        'Sruthi_Technologies_Brochure.pdf',
+        'Sruthi Technologies Product Catalog & Brochure 📄'
+      );
+      const confirmationMsg =
+        'Thank you! 📄\n\n' +
+        'Our official Sruthi Technologies Product Catalog & Brochure has been sent.\n\n' +
+        'You can also visit our official website:\n' +
+        '🌐 https://www.sruthitechnologies.com\n\n' +
+        'Our team will contact you soon for further assistance.';
+      await sendMessage(from, confirmationMsg);
+      if (currentState.lead_id) {
+        await updateLeadBrochureStatus(currentState.lead_id, true, true);
       }
-
-      // Fallback brochure prompt
-      const brochureText = 'Would you like to receive our machine brochure?';
-      const buttons = [
-        { id: 'brochure_yes', title: 'Yes' },
-        { id: 'brochure_no', title: 'No' }
-      ];
-      await sendButtonsMessage(from, brochureText, buttons);
+      clearUserState(from);
       break;
     }
 

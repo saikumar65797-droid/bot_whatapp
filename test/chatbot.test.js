@@ -87,6 +87,31 @@ async function runTests() {
   console.log('Sample Lead ID:', leadId);
   assert(/^LEAD-\d{8}-\d{4}$/.test(leadId), 'Lead ID format is LEAD-YYYYMMDD-XXXX');
 
+  // Test 5: Automatic Brochure Delivery for Non-Existing Customer
+  let documentSent = false;
+  let textSent = null;
+  const originalSendDocument = whatsappService.sendDocumentMessage;
+  whatsappService.sendMessage = async (to, text) => { textSent = text; return { mock: true }; };
+  whatsappService.sendDocumentMessage = async () => { documentSent = true; return { mock: true }; };
+
+  setUserState(testPhone, {
+    state: STATES.WAITING_INTERESTED_MACHINE_TYPE,
+    new_name: 'Test User',
+    new_mobile: '9876543210',
+    new_email: 'test@example.com',
+    factory_name: 'Test Factory',
+    address: 'Test Address',
+    request_type: 'Enquiry'
+  });
+
+  await processIncomingMessage(testPhone, { buttonId: 'mtype_sorter' });
+  assert(documentSent === true, 'Brochure PDF document sent automatically');
+  assert(textSent && textSent.includes('Product Catalog & Brochure has been sent'), 'Brochure completion confirmation sent');
+  assert(getUserState(testPhone) === null, 'User state cleared immediately after completing questions without brochure Yes/No prompt');
+
+  whatsappService.sendMessage = originalSendMessage;
+  whatsappService.sendDocumentMessage = originalSendDocument;
+
   console.log('\n🎉 All Tests Passed Successfully!');
   process.exit(0);
 }

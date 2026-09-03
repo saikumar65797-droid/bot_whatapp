@@ -44,8 +44,8 @@ const createLead = async (leadData) => {
     customerType: 'NON_EXISTING',
     source: 'WhatsApp',
     status: 'NEW',
-    brochureRequested: false,
-    brochureSent: false
+    brochureRequested: true,
+    brochureSent: true
   };
 
   const newLead = await Lead.create(docData);
