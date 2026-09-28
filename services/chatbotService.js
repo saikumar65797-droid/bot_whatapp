@@ -1,4 +1,5 @@
 const whatsappService = require('./whatsappService');
+const CompanyProfile = require('../models/CompanyProfile');
 const sendMessage = (...args) => whatsappService.sendMessage(...args);
 const sendButtonsMessage = (...args) => whatsappService.sendButtonsMessage(...args);
 const sendListMessage = (...args) => whatsappService.sendListMessage(...args);
@@ -18,6 +19,9 @@ const STATES = {
   VERIFYING_CUSTOMER: 'VERIFYING_CUSTOMER',
   WAITING_PROFILE_CONFIRMATION: 'WAITING_PROFILE_CONFIRMATION',
   WAITING_SERVICE_OPTION: 'WAITING_SERVICE_OPTION',
+  WAITING_AMC_MACHINE_SELECTION: 'WAITING_AMC_MACHINE_SELECTION',
+  WAITING_AMC_PLAN: 'WAITING_AMC_PLAN',
+  WAITING_AMC_CUSTOM_REQUIREMENT: 'WAITING_AMC_CUSTOM_REQUIREMENT',
   WAITING_MACHINE_SELECTION: 'WAITING_MACHINE_SELECTION',
   WAITING_CALL_TYPE: 'WAITING_CALL_TYPE',
   WAITING_CATEGORY: 'WAITING_CATEGORY',
@@ -143,6 +147,69 @@ const sendNewCustomerRequestTypeOptions = async (from) => {
 };
 
 /**
+ * Extract company-profile machine options into an interactive list structure.
+ * Handles multiple shapes, including arrays of objects and plain strings.
+ */
+const getMachineOptionsFromProfile = (profile) => {
+  if (!profile || !profile.machines) return [];
+
+  const machineValues = Array.isArray(profile.machines) ? profile.machines : [profile.machines];
+
+  return machineValues
+    .map((machine, index) => {
+      if (!machine) return null;
+
+      if (typeof machine === 'string') {
+        return {
+          id: `amc_machine_${index + 1}`,
+          machineName: machine,
+          raw: { machineName: machine }
+        };
+      }
+
+      if (typeof machine === 'object') {
+        const machineId = machine.machineId || machine.id || machine._id || machine.serialNumber || `amc_machine_${index + 1}`;
+        const machineName = machine.machineName || machine.name || machine.type || machine.machineType || machine.model || `Machine ${index + 1}`;
+
+        return {
+          id: String(machineId),
+          machineName,
+          raw: machine
+        };
+      }
+
+      return null;
+    })
+    .filter(Boolean);
+};
+
+const hasExistingAMCForMachine = (machine) => {
+  if (!machine || typeof machine !== 'object') return false;
+
+  const values = [
+    machine.amcStatus,
+    machine.amcStatusText,
+    machine.amc,
+    machine.AMC,
+    machine.currentAMC,
+    machine.amcPlan,
+    machine.amcPlanStatus,
+    machine.subscriptionStatus,
+    machine.servicePlan,
+    machine.maintenancePlan
+  ].filter((value) => value !== undefined && value !== null && value !== '');
+
+  if (values.length === 0) return false;
+
+  const flattened = values
+    .map((value) => (typeof value === 'object' ? JSON.stringify(value) : String(value)))
+    .join(' ')
+    .toLowerCase();
+
+  return /(active|ongoing|existing|enrolled|subscribed|valid|current|running)/.test(flattened);
+};
+
+/**
  * Parse Machine Type ID or return raw text
  */
 const parseMachineType = (text, buttonId) => {
@@ -193,6 +260,34 @@ const parseChutesCount = (text, buttonId) => {
   return NaN;
 };
 
+const sendAMCPlanOptions = async (from) => {
+  const rows = [
+    { id: 'amc_plan_3m', title: '3 Months', description: '2 visits - ₹3,000' },
+    { id: 'amc_plan_6m', title: '6 Months', description: '4 visits - ₹6,000' },
+    { id: 'amc_plan_1y', title: '1 Year', description: '6 visits - ₹12,000' },
+    { id: 'amc_plan_2y', title: '2 Years', description: '14 visits - ₹2,00,000' },
+    { id: 'amc_plan_other', title: 'Others', description: 'Custom AMC plan' }
+  ];
+
+  await sendListMessage(
+    from,
+    'AMC Plans',
+    'Please select the AMC plan you want to buy:',
+    'Select AMC Plan',
+    [{ title: 'AMC Plans', rows }]
+  );
+};
+
+const sendAMCContactMessage = async (from) => {
+  const contactText =
+    'Thank you. Our service team will contact you as early as possible.\n\n' +
+    'If any need help, please contact our team:\n' +
+    '📞 0987654321\n' +
+    '✉️ info.comaas@gmail.com';
+
+  await sendMessage(from, contactText);
+};
+
 /**
  * Core Chatbot Incoming Message Processor
  * @param {string} from Sender WhatsApp phone number
@@ -217,7 +312,7 @@ const processIncomingMessage = async (from, messageData) => {
     const contactMsg =
       'No problem. Please contact our support team directly:\n\n' +
       '📞 +91-70759 24366\n' +
-      '✉️ceo@sruthitechnologies.com\n\n' +
+      '✉️info.comaas@gmail.com\n\n' +
       "They'll be happy to assist you";
     await sendMessage(from, contactMsg);
     clearUserState(from);
@@ -362,7 +457,8 @@ const processIncomingMessage = async (from, messageData) => {
         const serviceText = 'How can we help you today?';
         const buttons = [
           { id: 'service_raise_ticket', title: 'Raise a Ticket' },
-          { id: 'service_add_machine', title: 'Request New Machine' }
+          { id: 'service_add_machine', title: 'Request New Machine' },
+          { id: 'service_buy_amc', title: 'Buy AMC' }
         ];
         await sendButtonsMessage(from, serviceText, buttons);
         return;
@@ -382,6 +478,7 @@ const processIncomingMessage = async (from, messageData) => {
     case STATES.WAITING_SERVICE_OPTION: {
       const isRaiseTicket = buttonId === 'service_raise_ticket' || lowerText.includes('ticket') || lowerText === '1';
       const isAddMachine = buttonId === 'service_add_machine' || lowerText.includes('machine') || lowerText === '2';
+      const isBuyAMC = buttonId === 'service_buy_amc' || lowerText.includes('amc') || lowerText === '3';
 
       if (isRaiseTicket) {
         // Step 7: Raise a Ticket -> Show machines list message
@@ -410,14 +507,142 @@ const processIncomingMessage = async (from, messageData) => {
         return;
       }
 
+      if (isBuyAMC) {
+        try {
+          const companyProfile = await CompanyProfile.findById(currentState.company_profile_id).lean();
+          const machineOptions = getMachineOptionsFromProfile(companyProfile);
+
+          if (!machineOptions.length) {
+            await sendMessage(from, 'No machines are available for this company profile. Please contact our support team for AMC assistance.');
+            await sendAMCContactMessage(from);
+            clearUserState(from);
+            return;
+          }
+
+          setUserState(from, {
+            state: STATES.WAITING_AMC_MACHINE_SELECTION,
+            company_profile: companyProfile
+          });
+
+          const rows = machineOptions.map((machine) => ({
+            id: machine.id,
+            title: machine.machineName,
+            description: hasExistingAMCForMachine(machine.raw) ? 'AMC already active' : 'AMC not active'
+          }));
+
+          await sendListMessage(
+            from,
+            'Select Machine',
+            'Please select the machine for which you want to buy AMC:',
+            'Select Machine',
+            [{ title: 'Company Machines', rows }]
+          );
+          return;
+        } catch (error) {
+          console.error('❌ Error loading company machines for AMC:', error);
+          await sendMessage(from, 'Unable to fetch your machines right now. Please contact our team.');
+          await sendAMCContactMessage(from);
+          clearUserState(from);
+          return;
+        }
+      }
+
       // Fallback service options prompt
       const serviceText = 'How can we help you today?';
       const buttons = [
         { id: 'service_raise_ticket', title: 'Raise a Ticket' },
-        { id: 'service_add_machine', title: 'Add a New Machine' }
+        { id: 'service_add_machine', title: 'Request New Machine' },
+        { id: 'service_buy_amc', title: 'Buy AMC' }
       ];
       await sendButtonsMessage(from, serviceText, buttons);
       break;
+    }
+
+    case STATES.WAITING_AMC_MACHINE_SELECTION: {
+      const profile = currentState.company_profile || await CompanyProfile.findById(currentState.company_profile_id).lean();
+      const machineOptions = getMachineOptionsFromProfile(profile);
+
+      const selectedMachine = machineOptions.find((machine) => {
+        const isMatchById = machine.id === buttonId;
+        const isMatchByText = machine.machineName.toLowerCase() === text.toLowerCase();
+        return isMatchById || isMatchByText;
+      });
+
+      if (!selectedMachine) {
+        const rows = machineOptions.map((machine) => ({
+          id: machine.id,
+          title: machine.machineName,
+          description: hasExistingAMCForMachine(machine.raw) ? 'AMC already active' : 'AMC not active'
+        }));
+
+        await sendListMessage(
+          from,
+          'Select Machine',
+          'Please select the machine for which you want to buy AMC:',
+          'Select Machine',
+          [{ title: 'Company Machines', rows }]
+        );
+        return;
+      }
+
+      if (hasExistingAMCForMachine(selectedMachine.raw)) {
+        await sendMessage(from, `Your selected machine (${selectedMachine.machineName}) already has an AMC plan.`);
+        await sendAMCContactMessage(from);
+        clearUserState(from);
+        return;
+      }
+
+      setUserState(from, {
+        state: STATES.WAITING_AMC_PLAN,
+        selected_machine_id: selectedMachine.id,
+        selected_machine_name: selectedMachine.machineName
+      });
+
+      await sendAMCPlanOptions(from);
+      return;
+    }
+
+    case STATES.WAITING_AMC_PLAN: {
+      const planMap = {
+        'amc_plan_3m': '3 Months - 2 visits - ₹3,000',
+        'amc_plan_6m': '6 Months - 4 visits - ₹6,000',
+        'amc_plan_1y': '1 Year - 6 visits - ₹12,000',
+        'amc_plan_2y': '2 Years - 14 visits - ₹2,00,000'
+      };
+
+      if (buttonId === 'amc_plan_other') {
+        setUserState(from, {
+          state: STATES.WAITING_AMC_CUSTOM_REQUIREMENT,
+          selected_machine_name: currentState.selected_machine_name,
+          selected_plan: 'Others'
+        });
+        await sendMessage(from, 'Please text the AMC plan you require.');
+        return;
+      }
+
+      const selectedPlan = planMap[buttonId] || text;
+      if (!selectedPlan) {
+        await sendAMCPlanOptions(from);
+        return;
+      }
+
+      const planText = `Selected AMC Plan: ${selectedPlan}`;
+      await sendMessage(from, `${planText}\n\nOur service team will contact you as early as possible.`);
+      await sendAMCContactMessage(from);
+      clearUserState(from);
+      return;
+    }
+
+    case STATES.WAITING_AMC_CUSTOM_REQUIREMENT: {
+      if (!text || !text.trim()) {
+        await sendMessage(from, 'Please text the AMC plan you require.');
+        return;
+      }
+
+      await sendMessage(from, `Thank you. We have noted your requirement: "${text.trim()}"`);
+      await sendAMCContactMessage(from);
+      clearUserState(from);
+      return;
     }
 
     // ----------------------------------------------------
@@ -902,5 +1127,7 @@ const processIncomingMessage = async (from, messageData) => {
 module.exports = {
   STATES,
   sendInitialGreeting,
-  processIncomingMessage
+  processIncomingMessage,
+  getMachineOptionsFromProfile,
+  hasExistingAMCForMachine
 };

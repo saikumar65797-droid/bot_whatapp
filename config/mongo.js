@@ -2,16 +2,26 @@ const mongoose = require('mongoose');
 
 /**
  * Connect to MongoDB database using Mongoose
+ * Supports both direct URI values and username/password env variables.
  */
 const connectDB = async () => {
   try {
-    const connStr = process.env.MONGODB_URI;
+    const user = process.env.MONGODB_USER;
+    const pass = process.env.MONGODB_PASS;
+    const dbName = process.env.MONGODB_DB || 'Manufacturing_Unit';
+
+    let connStr = process.env.MONGODB_URI;
+
+    if (!connStr && user && pass) {
+      connStr = `mongodb+srv://${user}:${pass}@${process.env.MONGODB_HOST || 'cluster0.mongodb.net'}/${dbName}?retryWrites=true&w=majority`;
+    }
+
     if (!connStr) {
       console.warn('⚠️ MONGODB_URI is not defined in environment variables.');
       return;
     }
 
-    const options = process.env.MONGODB_DB ? { dbName: process.env.MONGODB_DB } : {};
+    const options = dbName ? { dbName } : {};
     const conn = await mongoose.connect(connStr, options);
     console.log(`✅ MongoDB Connected: ${conn.connection.host}/${conn.connection.name}`);
   } catch (error) {

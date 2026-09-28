@@ -3,7 +3,7 @@ require('dotenv').config();
  * Automated Test Suite for Upgraded WhatsApp Chatbot Logic
  */
 const { normalizeMobile, normalizeEmail } = require('../services/companyProfileService');
-const { STATES, processIncomingMessage } = require('../services/chatbotService');
+const { STATES, processIncomingMessage, getMachineOptionsFromProfile, hasExistingAMCForMachine } = require('../services/chatbotService');
 const { getUserState, setUserState, clearUserState } = require('../utils/userState');
 const connectDB = require('../config/mongo');
 const { generateTicketId } = require('../services/ticketService');
@@ -32,6 +32,19 @@ async function runTests() {
   assert(STATES.WAITING_CAPACITY_REQUIRED === 'WAITING_CAPACITY_REQUIRED', 'State WAITING_CAPACITY_REQUIRED is defined');
   assert(STATES.WAITING_NEW_CUSTOMER_REQUEST_TYPE === 'WAITING_NEW_CUSTOMER_REQUEST_TYPE', 'State WAITING_NEW_CUSTOMER_REQUEST_TYPE is defined');
   assert(STATES.WAITING_BROCHURE_CONFIRMATION === 'WAITING_BROCHURE_CONFIRMATION', 'State WAITING_BROCHURE_CONFIRMATION is defined');
+
+  // Test 2.5: AMC helpers
+  const mockProfile = {
+    machines: [
+      { machineId: 'm-1', machineName: 'Sorter', amcStatus: 'ACTIVE' },
+      { machineId: 'm-2', machineName: 'Packing Machine', amcStatus: null }
+    ]
+  };
+  const machineOptions = getMachineOptionsFromProfile(mockProfile);
+  assert(machineOptions.length === 2, 'AMC helper returns all machines in the company profile');
+  assert(machineOptions[0].id === 'm-1', 'AMC helper preserves machine IDs from the profile');
+  assert(hasExistingAMCForMachine({ amcStatus: 'ACTIVE' }) === true, 'AMC status is detected when plan already exists');
+  assert(hasExistingAMCForMachine({ amcStatus: null }) === false, 'AMC status is false when no plan exists');
 
   // Test 3: User State Manager
   const testPhone = '919999988888';
