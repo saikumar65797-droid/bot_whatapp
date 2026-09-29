@@ -481,22 +481,39 @@ const processIncomingMessage = async (from, messageData) => {
       const isBuyAMC = buttonId === 'service_buy_amc' || lowerText.includes('amc') || lowerText === '3';
 
       if (isRaiseTicket) {
-        // Step 7: Raise a Ticket -> Show machines list message
-        setUserState(from, { state: STATES.WAITING_MACHINE_SELECTION });
+        try {
+          const companyProfile = await CompanyProfile.findById(currentState.company_profile_id).lean();
+          const machineOptions = getMachineOptionsFromProfile(companyProfile);
 
-        const rows = [
-          { id: 'machine_001', title: 'Machine 001', description: 'Primary Color Sorter' },
-          { id: 'machine_002', title: 'Machine 002', description: 'Secondary Grain Sorter' },
-          { id: 'machine_003', title: 'Machine 003', description: 'Auxiliary Sorting Machine' }
-        ];
+          if (!machineOptions.length) {
+            await sendMessage(from, 'No machines are available for this company profile. Please contact our support team for ticket assistance.');
+            clearUserState(from);
+            return;
+          }
 
-        await sendListMessage(
-          from,
-          'Select Machine',
-          'Please select the machine for which you want to raise a ticket:',
-          'Select Machine',
-          [{ title: 'Registered Machines', rows }]
-        );
+          setUserState(from, {
+            state: STATES.WAITING_MACHINE_SELECTION,
+            company_profile: companyProfile
+          });
+
+          const rows = machineOptions.map((machine) => ({
+            id: machine.id,
+            title: machine.machineName,
+            description: machine.raw.serialNumber || machine.raw.model || machine.raw.machineType || undefined
+          }));
+
+          await sendListMessage(
+            from,
+            'Select Machine',
+            'Please select the machine for which you want to raise a ticket:',
+            'Select Machine',
+            [{ title: 'Company Machines', rows }]
+          );
+        } catch (error) {
+          console.error('❌ Error loading company machines for ticket:', error);
+          await sendMessage(from, 'Unable to fetch your machines right now. Please contact our team.');
+          clearUserState(from);
+        }
         return;
       }
 
@@ -649,14 +666,38 @@ const processIncomingMessage = async (from, messageData) => {
     // RAISE A TICKET SUB-FLOW
     // ----------------------------------------------------
     case STATES.WAITING_MACHINE_SELECTION: {
-      let selectedMachine = text;
-      if (buttonId.startsWith('machine_')) {
-        selectedMachine = buttonId.replace('machine_', 'Machine ').toUpperCase();
+      const profile = currentState.company_profile || await CompanyProfile.findById(currentState.company_profile_id).lean();
+      const machineOptions = getMachineOptionsFromProfile(profile);
+      const selectedMachine = machineOptions.find((machine) => (
+        machine.id === buttonId || machine.machineName.toLowerCase() === text.toLowerCase()
+      ));
+
+      if (!selectedMachine) {
+        if (!machineOptions.length) {
+          await sendMessage(from, 'No machines are available for this company profile. Please contact our support team for ticket assistance.');
+          clearUserState(from);
+          return;
+        }
+
+        const rows = machineOptions.map((machine) => ({
+          id: machine.id,
+          title: machine.machineName,
+          description: machine.raw.serialNumber || machine.raw.model || machine.raw.machineType || undefined
+        }));
+        await sendListMessage(
+          from,
+          'Select Machine',
+          'Please select a machine from your company profile:',
+          'Select Machine',
+          [{ title: 'Company Machines', rows }]
+        );
+        return;
       }
 
       setUserState(from, {
         state: STATES.WAITING_CALL_TYPE,
-        selected_machine_id: selectedMachine
+        selected_machine_id: selectedMachine.id,
+        selected_machine_name: selectedMachine.machineName
       });
 
       // Call Type List Message
@@ -785,6 +826,7 @@ const processIncomingMessage = async (from, messageData) => {
         state_name,
         district,
         selected_machine_id,
+        selected_machine_name,
         call_type,
         category,
         priority
@@ -799,6 +841,7 @@ const processIncomingMessage = async (from, messageData) => {
           state: state_name,
           district: district,
           selectedMachineId: selected_machine_id,
+          machineType: selected_machine_name,
           callType: call_type,
           category: category,
           priority: priority,
