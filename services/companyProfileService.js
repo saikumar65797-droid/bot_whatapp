@@ -93,6 +93,20 @@ const findProfileInMongoDb = async (finalQuery) => {
   return null;
 };
 
+const findProfilesInMongoDb = async (query) => {
+  const db = mongoose.connection.db;
+  if (!db) throw new Error('MongoDB connection is not ready');
+
+  const results = [];
+  for (const collectionName of getCompanyProfileCollectionNames()) {
+    try {
+      const docs = await db.collection(collectionName).find(query).toArray();
+      results.push(...docs);
+    } catch (_) { /* skip invalid collections */ }
+  }
+  return results;
+};
+
 const findCompanyProfileById = async (id) => {
   if (id === undefined || id === null) return null;
 
@@ -119,7 +133,41 @@ const findCompanyProfileById = async (id) => {
 };
 
 /**
+ * Compute a similarity score between two email strings (0 = no match, 1 = identical).
+ * Domain must match exactly. Local-part is scored by counting characters in common
+ * relative to the longer string, which handles insertions/deletions anywhere.
+ */
+const emailSimilarity = (a, b) => {
+  if (!a || !b) return 0;
+  const aLow = String(a).toLowerCase().trim();
+  const bLow = String(b).toLowerCase().trim();
+  if (aLow === bLow) return 1;
+
+  const [aLocal = '', aDomain = ''] = aLow.split('@');
+  const [bLocal = '', bDomain = ''] = bLow.split('@');
+
+  // Domain must match exactly for security
+  if (aDomain !== bDomain) return 0;
+
+  // Count characters in common (multiset intersection)
+  const freq = {};
+  for (const ch of aLocal) freq[ch] = (freq[ch] || 0) + 1;
+  let common = 0;
+  for (const ch of bLocal) {
+    if (freq[ch] > 0) { common++; freq[ch]--; }
+  }
+  const maxLen = Math.max(aLocal.length, bLocal.length);
+  return maxLen === 0 ? 0 : common / maxLen;
+};
+
+
+/**
  * Search company profiles using the real live fields and the legacy nested fields.
+ *
+ * Two-tier strategy:
+ *  1. Exact phone + exact email match (fast, strict).
+ *  2. Phone-only match → pick the candidate with the highest email similarity
+ *     (handles typos / legacy data-entry errors in the stored email).
  */
 const findMatchingCompanyProfile = async (mobile, email) => {
   try {
@@ -136,24 +184,25 @@ const findMatchingCompanyProfile = async (mobile, email) => {
     const phonePattern = clean10.split('').join('[\\s\\-\\+]*');
     const phoneRegex = new RegExp(phonePattern);
 
-    const finalQuery = {
+    const phoneOrClauses = [
+      { contactNumber: { $regex: new RegExp(clean10, 'i') } },
+      { contactNumber: phoneRegex },
+      { contactNumber: normMobile },
+      { contactPerson: { $regex: new RegExp(clean10, 'i') } },
+      { contactPerson: phoneRegex },
+      { contactPerson: normMobile },
+      { 'contact.numbers': phoneRegex },
+      { 'contact.numbers': normMobile },
+      { phone: phoneRegex },
+      { phone: normMobile },
+      { mobile: phoneRegex },
+      { mobile: normMobile }
+    ];
+
+    // ── Tier 1: Exact phone + exact email ────────────────────────────────────
+    const exactQuery = {
       $and: [
-        {
-          $or: [
-            { contactNumber: { $regex: new RegExp(clean10, 'i') } },
-            { contactNumber: phoneRegex },
-            { contactNumber: normMobile },
-            { contactPerson: { $regex: new RegExp(clean10, 'i') } },
-            { contactPerson: phoneRegex },
-            { contactPerson: normMobile },
-            { 'contact.numbers': phoneRegex },
-            { 'contact.numbers': normMobile },
-            { phone: phoneRegex },
-            { phone: normMobile },
-            { mobile: phoneRegex },
-            { mobile: normMobile }
-          ]
-        },
+        { $or: phoneOrClauses },
         {
           $or: [
             { contactEmail: { $regex: new RegExp(`^${escapedEmail}$`, 'i') } },
@@ -164,7 +213,43 @@ const findMatchingCompanyProfile = async (mobile, email) => {
       ]
     };
 
-    const profile = await findProfileInMongoDb(finalQuery);
+    let profile = await findProfileInMongoDb(exactQuery);
+
+    // ── Tier 2: Phone-only → best email similarity ────────────────────────────
+    // Handles cases where the email stored in the DB has a typo vs what the
+    // customer actually types (e.g. "revanag..." stored vs "revanaa..." typed).
+    if (!profile) {
+      console.log(`🔍 Exact match missed. Trying fuzzy email fallback for mobile: ${normMobile}`);
+
+      const phoneQuery = { $or: phoneOrClauses };
+      const candidates = await findProfilesInMongoDb(phoneQuery);
+
+      if (candidates.length > 0) {
+        const SIMILARITY_THRESHOLD = 0.6;
+        let bestScore = 0;
+        let bestDoc = null;
+
+        for (const doc of candidates) {
+          const storedEmail = doc.contactEmail || doc['contact.email'] || doc.email || '';
+          const score = emailSimilarity(storedEmail, normEmail);
+          const machineCount = Array.isArray(doc.machines) ? doc.machines.length : 0;
+          console.log(`  Candidate: "${doc.company || doc.companyProfileName}" | stored="${storedEmail}" | typed="${normEmail}" | score=${score.toFixed(2)} | machines=${machineCount}`);
+          // Prefer higher score; on tie prefer more machines
+          const isBetter = score > bestScore || (score === bestScore && machineCount > (Array.isArray(bestDoc?.machines) ? bestDoc.machines.length : 0));
+          if (isBetter) {
+            bestScore = score;
+            bestDoc = doc;
+          }
+        }
+
+        if (bestDoc && bestScore >= SIMILARITY_THRESHOLD) {
+          console.log(`✅ Fuzzy email match accepted (score=${bestScore.toFixed(2)}): ${bestDoc.company || bestDoc.companyProfileName}`);
+          profile = bestDoc;
+        } else {
+          console.log(`🔍 Fuzzy match below threshold (best=${bestScore.toFixed(2)}) for mobile: ${normMobile}, email: ${normEmail}`);
+        }
+      }
+    }
 
     if (!profile) {
       console.log(`🔍 Company profile search missed for mobile: ${normMobile}, email: ${normEmail}`);
