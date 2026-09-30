@@ -43,6 +43,15 @@ async function runTests() {
   assert(profileSummary.includes('*Contact number:* 9876543210') && profileSummary.includes('*Email:* contact@example.com'), 'Verified company number and email appear in the profile summary');
   assert(profileSummary.includes('*Registered machines:* Sorter'), 'Company profile summary includes registered machines');
 
+  const swappedProfile = normalizeCompanyProfile({
+    company: 'Example Manufacturing',
+    contactPerson: '9123456789',
+    contactNumber: 'Example Contact',
+    contactEmail: 'contact@example.com'
+  });
+  assert(swappedProfile.contactNumber === '9123456789', 'Phone is recovered when stored in contactPerson');
+  assert(swappedProfile.contactPerson === 'Example Contact', 'Name is recovered when stored in contactNumber');
+
   let databaseUnavailableReported = false;
   const originalConsoleError = console.error;
   console.error = () => {};

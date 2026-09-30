@@ -24,6 +24,12 @@ const normalizeEmail = (email) => {
   return String(email).trim().toLowerCase();
 };
 
+const isPhoneNumber = (value) => {
+  if (!value) return false;
+  const digits = String(value).replace(/\D/g, '');
+  return digits.length === 10 || (digits.length === 12 && digits.startsWith('91'));
+};
+
 /**
  * Returns a normalized shape to work across legacy and live company-profile collections.
  */
@@ -32,13 +38,21 @@ const normalizeCompanyProfile = (profile) => {
 
   const companyName = profile.companyProfileName || profile.company || profile.companyName || 'N/A';
   const cleanCompany = String(companyName).replace(/^:\s*/, '').trim();
+  const storedContactNumber = profile.contactNumber || profile.contact?.numbers?.[0] || profile.mobile || profile.phone || '';
+  const storedContactPerson = profile.contactPerson || profile.contact?.person || '';
+  const contactNumber = isPhoneNumber(storedContactNumber)
+    ? storedContactNumber
+    : (isPhoneNumber(storedContactPerson) ? storedContactPerson : storedContactNumber);
+  const contactPerson = isPhoneNumber(storedContactPerson)
+    ? (storedContactNumber && !isPhoneNumber(storedContactNumber) ? storedContactNumber : '')
+    : storedContactPerson;
 
   return {
     ...profile,
     companyProfileName: cleanCompany,
     profileCode: profile.profileCode || profile.profile || '',
-    contactPerson: profile.contactPerson || profile.contact?.person || '',
-    contactNumber: profile.contactNumber || profile.contact?.numbers?.[0] || profile.mobile || profile.phone || '',
+    contactPerson,
+    contactNumber,
     contactEmail: profile.contactEmail || profile.contact?.email || profile.email || '',
     country: profile.country || profile.address?.country || '',
     state: profile.state || profile.address?.state || profile.region || '',
@@ -125,6 +139,9 @@ const findMatchingCompanyProfile = async (mobile, email) => {
             { contactNumber: { $regex: new RegExp(`^${clean10}$`, 'i') } },
             { contactNumber: { $regex: new RegExp(`^${phonePattern}$`, 'i') } },
             { contactNumber: normMobile },
+            { contactPerson: { $regex: new RegExp(`^${clean10}$`, 'i') } },
+            { contactPerson: { $regex: new RegExp(`^${phonePattern}$`, 'i') } },
+            { contactPerson: normMobile },
             { 'contact.numbers': phoneRegex },
             { 'contact.numbers': normMobile },
             { phone: phoneRegex },
@@ -168,6 +185,7 @@ const findMatchingCompanyProfile = async (mobile, email) => {
 module.exports = {
   normalizeMobile,
   normalizeEmail,
+  isPhoneNumber,
   normalizeCompanyProfile,
   findMatchingCompanyProfile,
   findCompanyProfileById
