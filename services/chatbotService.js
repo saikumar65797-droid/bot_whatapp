@@ -413,6 +413,34 @@ const processIncomingMessage = async (from, messageData) => {
     return;
   }
 
+  // Detect corrupt/stale state: past verification but profile data is missing
+  // (e.g. old session from before MongoDB persistence was added)
+  const statesNeedingProfile = [
+    STATES.WAITING_SERVICE_OPTION,
+    STATES.WAITING_MACHINE_SELECTION,
+    STATES.WAITING_AMC_MACHINE_SELECTION,
+    STATES.WAITING_CALL_TYPE,
+    STATES.WAITING_CATEGORY,
+    STATES.WAITING_PRIORITY,
+    STATES.WAITING_DESCRIPTION,
+    STATES.WAITING_AMC_PLAN,
+    STATES.WAITING_AMC_CUSTOM_REQUIREMENT,
+    STATES.WAITING_MACHINE_TYPE,
+    STATES.WAITING_MACHINE_MODEL,
+    STATES.WAITING_NUMBER_OF_CHUTES,
+    STATES.WAITING_CAPACITY_REQUIRED,
+    STATES.WAITING_GRAIN_TYPE
+  ];
+  if (statesNeedingProfile.includes(currentState.state) &&
+      !currentState.company_profile &&
+      !currentState.company_profile_id) {
+    console.warn(`⚠️ Corrupt/stale state detected for ${from}: state=${currentState.state} but no profile data. Auto-resetting.`);
+    clearUserState(from);
+    await sendMessage(from, 'Your session data could not be restored. Please type *Hi* to start again. 🙏');
+    return;
+  }
+
+
   // Handle explicit Contact Team action
   if (buttonId === 'contact_team' || lowerText === 'contact team' || lowerText === 'contact_team') {
     const contactMsg =
