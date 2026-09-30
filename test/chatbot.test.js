@@ -3,7 +3,7 @@ require('dotenv').config();
  * Automated Test Suite for Upgraded WhatsApp Chatbot Logic
  */
 const { normalizeMobile, normalizeEmail, normalizeCompanyProfile, findMatchingCompanyProfile } = require('../services/companyProfileService');
-const { STATES, processIncomingMessage, getMachineOptionsFromProfile, formatCompanyProfileSummary, hasExistingAMCForMachine } = require('../services/chatbotService');
+const { STATES, processIncomingMessage, getMachineOptionsFromProfile, getMachineCoverageStatus, formatMachineDetails, formatCompanyProfileSummary, hasExistingAMCForMachine } = require('../services/chatbotService');
 const { getUserState, setUserState, clearUserState } = require('../utils/userState');
 const connectDB = require('../config/mongo');
 const { generateTicketId } = require('../services/ticketService');
@@ -82,6 +82,17 @@ async function runTests() {
   assert(machineOptions[0].id === 'm-1', 'AMC helper preserves machine IDs from the profile');
   assert(hasExistingAMCForMachine({ amcStatus: 'ACTIVE' }) === true, 'AMC status is detected when plan already exists');
   assert(hasExistingAMCForMachine({ amcStatus: null }) === false, 'AMC status is false when no plan exists');
+
+  const activeWarrantyCoverage = getMachineCoverageStatus({
+    machineType: 'Sorter',
+    contract: { type: 'Warranty', status: 'Active', startDate: '2025-08-25', endDate: '2028-08-23' }
+  }, new Date('2026-09-30T12:00:00Z'));
+  assert(activeWarrantyCoverage.warrantyStatus === 'Active through 2028-08-23', 'Nested warranty contract dates are fetched and evaluated');
+  assert(activeWarrantyCoverage.amcStatus === 'No AMC recorded', 'Warranty contract is not mistaken for an AMC');
+
+  const expiredWarrantyCoverage = getMachineCoverageStatus({ contract: { type: 'Out of Warranty' } });
+  assert(expiredWarrantyCoverage.warrantyStatus === 'Out of warranty', 'Out-of-warranty contract is reported accurately');
+  assert(formatMachineDetails({ model: 'RGBS', contract: { type: 'Out of Warranty' } }).includes('*AMC:* No AMC recorded'), 'Machine details explicitly report when no AMC exists');
 
   // Test 3: User State Manager
   const testPhone = '919999988888';

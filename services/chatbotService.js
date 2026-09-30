@@ -207,10 +207,25 @@ const formatCompanyProfileSummary = (profile) => {
   return lines.filter((line) => line !== null).join('\n');
 };
 
-const hasExistingAMCForMachine = (machine) => {
-  if (!machine || typeof machine !== 'object') return false;
+const parseContractDate = (value, endOfDay = false) => {
+  if (!value) return null;
+  const dateText = String(value);
+  const normalizedDate = /^\d{4}-\d{2}-\d{2}$/.test(dateText)
+    ? `${dateText}T${endOfDay ? '23:59:59.999' : '00:00:00.000'}Z`
+    : dateText;
+  const date = new Date(normalizedDate);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
 
-  const values = [
+const getMachineCoverageStatus = (machine, now = new Date()) => {
+  if (!machine || typeof machine !== 'object') {
+    return { amcStatus: 'No AMC recorded', warrantyStatus: 'No warranty record', contractType: '' };
+  }
+
+  const contract = machine.contract && typeof machine.contract === 'object' ? machine.contract : {};
+  const contractType = String(contract.type || '').trim();
+  const contractTypeLower = contractType.toLowerCase();
+  const amcValues = [
     machine.amcStatus,
     machine.amcStatusText,
     machine.amc,
@@ -222,15 +237,74 @@ const hasExistingAMCForMachine = (machine) => {
     machine.servicePlan,
     machine.maintenancePlan
   ].filter((value) => value !== undefined && value !== null && value !== '');
-
-  if (values.length === 0) return false;
-
-  const flattened = values
+  const amcText = amcValues
     .map((value) => (typeof value === 'object' ? JSON.stringify(value) : String(value)))
     .join(' ')
     .toLowerCase();
+  const contractIsAMC = /\bamc\b|annual maintenance/.test(contractTypeLower);
+  const contractStatus = String(contract.status || '').toLowerCase();
+  const amcIsInactive = /\b(no\s*amc|not[\s_-]*active|inactive|expired|cancelled|lapsed|terminated)\b/.test(amcText) ||
+    (contractIsAMC && /expired|inactive|cancelled|lapsed|terminated/.test(contractStatus));
+  let amcActive = false;
 
-  return /(active|ongoing|existing|enrolled|subscribed|valid|current|running)/.test(flattened);
+  if (!amcIsInactive && contractIsAMC) {
+    const startDate = parseContractDate(contract.startDate);
+    const endDate = parseContractDate(contract.endDate, true);
+    amcActive = (!startDate || startDate <= now) && (!endDate || endDate >= now);
+  } else if (!amcIsInactive) {
+    amcActive = /\b(active|ongoing|existing|enrolled|subscribed|valid|current|running)\b/.test(amcText);
+  }
+
+  let warrantyStatus = 'No warranty record';
+  if (/out of warranty/.test(contractTypeLower)) {
+    warrantyStatus = 'Out of warranty';
+  } else if (/warranty/.test(contractTypeLower)) {
+    const startDate = parseContractDate(contract.startDate);
+    const endDate = parseContractDate(contract.endDate, true);
+    const contractStatus = String(contract.status || '').toLowerCase();
+
+    if (/expired|inactive|cancelled|lapsed/.test(contractStatus) || (endDate && endDate < now)) {
+      warrantyStatus = `Expired${contract.endDate ? ` on ${contract.endDate}` : ''}`;
+    } else if (startDate && startDate > now) {
+      warrantyStatus = `Starts on ${contract.startDate}`;
+    } else if (endDate) {
+      warrantyStatus = `Active through ${contract.endDate}`;
+    } else {
+      warrantyStatus = 'Warranty recorded; dates unavailable';
+    }
+  }
+
+  return {
+    amcStatus: amcActive ? 'AMC active' : 'No AMC recorded',
+    warrantyStatus,
+    contractType
+  };
+};
+
+const hasExistingAMCForMachine = (machine, now = new Date()) => {
+  return getMachineCoverageStatus(machine, now).amcStatus === 'AMC active';
+};
+
+const formatMachineDetails = (machine, fallbackName = 'Machine') => {
+  const details = machine && typeof machine === 'object' ? machine : {};
+  const coverage = getMachineCoverageStatus(details);
+  const contractDates = [details.contract?.startDate, details.contract?.endDate].filter(Boolean).join(' to ');
+  const lines = [
+    '*Registered machine details*',
+    `*Machine:* ${details.machine || details.machineName || fallbackName}`,
+    details.machineType ? `*Type:* ${details.machineType}` : null,
+    details.model ? `*Model:* ${details.model}` : null,
+    details.serialNumber ? `*Serial number:* ${details.serialNumber}` : null,
+    details.version ? `*Version:* ${details.version}` : null,
+    details.numberOfChutes ? `*Chutes:* ${details.numberOfChutes}` : null,
+    details.manufactureDate ? `*Manufactured:* ${details.manufactureDate}` : null,
+    details.installationDate ? `*Installed:* ${details.installationDate}` : null,
+    coverage.contractType ? `*Contract:* ${coverage.contractType}${contractDates ? ` (${contractDates})` : ''}` : null,
+    `*Warranty:* ${coverage.warrantyStatus}`,
+    `*AMC:* ${coverage.amcStatus}`
+  ];
+
+  return lines.filter((line) => line !== null).join('\n');
 };
 
 /**
@@ -566,11 +640,14 @@ const processIncomingMessage = async (from, messageData) => {
             company_profile: companyProfile
           });
 
-          const rows = machineOptions.map((machine) => ({
-            id: machine.id,
-            title: machine.machineName,
-            description: hasExistingAMCForMachine(machine.raw) ? 'AMC already active' : 'AMC not active'
-          }));
+          const rows = machineOptions.map((machine) => {
+            const coverage = getMachineCoverageStatus(machine.raw);
+            return {
+              id: machine.id,
+              title: machine.machineName,
+              description: `${coverage.amcStatus}; ${coverage.warrantyStatus}`.slice(0, 72)
+            };
+          });
 
           await sendListMessage(
             from,
@@ -611,11 +688,14 @@ const processIncomingMessage = async (from, messageData) => {
       });
 
       if (!selectedMachine) {
-        const rows = machineOptions.map((machine) => ({
-          id: machine.id,
-          title: machine.machineName,
-          description: hasExistingAMCForMachine(machine.raw) ? 'AMC already active' : 'AMC not active'
-        }));
+        const rows = machineOptions.map((machine) => {
+          const coverage = getMachineCoverageStatus(machine.raw);
+          return {
+            id: machine.id,
+            title: machine.machineName,
+            description: `${coverage.amcStatus}; ${coverage.warrantyStatus}`.slice(0, 72)
+          };
+        });
 
         await sendListMessage(
           from,
@@ -626,6 +706,8 @@ const processIncomingMessage = async (from, messageData) => {
         );
         return;
       }
+
+      await sendMessage(from, formatMachineDetails(selectedMachine.raw, selectedMachine.machineName));
 
       if (hasExistingAMCForMachine(selectedMachine.raw)) {
         await sendMessage(from, `Your selected machine (${selectedMachine.machineName}) already has an AMC plan.`);
@@ -725,13 +807,16 @@ const processIncomingMessage = async (from, messageData) => {
         selected_machine_name: selectedMachine.machineName
       });
 
+      await sendMessage(from, formatMachineDetails(selectedMachine.raw, selectedMachine.machineName));
+
       // Call Type List Message
+      const coverage = getMachineCoverageStatus(selectedMachine.raw);
       const rows = [
         { id: 'call_type_pre_install', title: 'Pre-Install', description: 'Pre-installation service call' },
         { id: 'call_type_installation', title: 'Installation & Comm', description: 'Installation & Commissioning' },
-        { id: 'call_type_warranty', title: 'Warranty', description: 'Warranty covered call' },
-        { id: 'call_type_out_warranty', title: 'Out of Warranty', description: 'Chargeable service call' },
-        { id: 'call_type_amc', title: 'AMC', description: 'Annual Maintenance Contract' },
+        { id: 'call_type_warranty', title: 'Warranty', description: coverage.warrantyStatus.slice(0, 72) },
+        { id: 'call_type_out_warranty', title: 'Out of Warranty', description: coverage.warrantyStatus.slice(0, 72) },
+        { id: 'call_type_amc', title: 'AMC', description: coverage.amcStatus.slice(0, 72) },
         { id: 'call_type_courtesy', title: 'Courtesy Visit', description: 'Routine check visit' },
         { id: 'call_type_others', title: 'Others', description: 'Other service requirement' }
       ];
@@ -759,6 +844,16 @@ const processIncomingMessage = async (from, messageData) => {
       };
       if (callTypeMap[buttonId]) {
         callType = callTypeMap[buttonId];
+      }
+
+      if (callType === 'AMC' || callType === 'Warranty') {
+        const selectedMachine = getMachineOptionsFromProfile(currentState.company_profile)
+          .find((machine) => machine.id === currentState.selected_machine_id);
+        if (selectedMachine) {
+          const coverage = getMachineCoverageStatus(selectedMachine.raw);
+          const status = callType === 'AMC' ? coverage.amcStatus : coverage.warrantyStatus;
+          await sendMessage(from, `${callType} status for ${selectedMachine.machineName}: ${status}.`);
+        }
       }
 
       setUserState(from, {
@@ -1197,6 +1292,8 @@ module.exports = {
   sendInitialGreeting,
   processIncomingMessage,
   getMachineOptionsFromProfile,
+  getMachineCoverageStatus,
+  formatMachineDetails,
   formatCompanyProfileSummary,
   hasExistingAMCForMachine
 };
