@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const companyProfileCollection = process.env.COMPANY_PROFILE_COLLECTION || 'companyProfiles_testing';
 
 /**
  * CompanyProfile Schema
@@ -6,11 +7,18 @@ const mongoose = require('mongoose');
  */
 const companyProfileSchema = new mongoose.Schema(
   {
+    profile: String,
     profileCode: String,
     company: {
       type: String,
       trim: true
     },
+    contactPerson: String,
+    contactNumber: String,
+    contactEmail: String,
+    country: String,
+    state: String,
+    area: String,
     address: {
       country: String,
       state: String,
@@ -36,10 +44,10 @@ const companyProfileSchema = new mongoose.Schema(
   },
   {
     timestamps: false,
-    collection: 'company profile'
+    collection: companyProfileCollection
   }
 );
 
-const CompanyProfile = mongoose.model('CompanyProfile', companyProfileSchema, 'company profile');
+const CompanyProfile = mongoose.model('CompanyProfile', companyProfileSchema, companyProfileCollection);
 
 module.exports = CompanyProfile;

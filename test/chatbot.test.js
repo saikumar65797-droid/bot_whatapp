@@ -2,8 +2,8 @@ require('dotenv').config();
 /**
  * Automated Test Suite for Upgraded WhatsApp Chatbot Logic
  */
-const { normalizeMobile, normalizeEmail } = require('../services/companyProfileService');
-const { STATES, processIncomingMessage, getMachineOptionsFromProfile, hasExistingAMCForMachine } = require('../services/chatbotService');
+const { normalizeMobile, normalizeEmail, normalizeCompanyProfile } = require('../services/companyProfileService');
+const { STATES, processIncomingMessage, getMachineOptionsFromProfile, formatCompanyProfileSummary, hasExistingAMCForMachine } = require('../services/chatbotService');
 const { getUserState, setUserState, clearUserState } = require('../utils/userState');
 const connectDB = require('../config/mongo');
 const { generateTicketId } = require('../services/ticketService');
@@ -26,6 +26,22 @@ async function runTests() {
   assert(normalizeMobile('+91 94206 67077') === '9420667077', 'Mobile normalization strips +91 and spaces');
   assert(normalizeMobile('77956-48641') === '7795648641', 'Mobile normalization strips hyphens');
   assert(normalizeEmail('  Anup.C2008@Gmail.Com ') === 'anup.c2008@gmail.com', 'Email normalization lowercases & trims');
+
+  const profile = normalizeCompanyProfile({
+    profile: 'CP-TEST-1',
+    company: 'Example Manufacturing',
+    contactPerson: 'Example Contact',
+    contactNumber: '9876543210',
+    contactEmail: 'contact@example.com',
+    country: 'India',
+    state: 'Karnataka',
+    area: 'Example Area',
+    machines: [{ machineType: 'Sorter', model: 'RGBS' }]
+  });
+  const profileSummary = formatCompanyProfileSummary(profile);
+  assert(profile.profileCode === 'CP-TEST-1', 'Company profile code maps from the testing collection profile field');
+  assert(profileSummary.includes('*Contact number:* 9876543210') && profileSummary.includes('*Email:* contact@example.com'), 'Verified company number and email appear in the profile summary');
+  assert(profileSummary.includes('*Registered machines:* Sorter'), 'Company profile summary includes registered machines');
 
   // Test 2: State Enum Checks
   assert(STATES.WAITING_CUSTOMER_TYPE === 'WAITING_CUSTOMER_TYPE', 'State WAITING_CUSTOMER_TYPE is defined');
