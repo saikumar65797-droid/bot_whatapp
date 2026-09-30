@@ -1,10 +1,9 @@
 const whatsappService = require('./whatsappService');
-const CompanyProfile = require('../models/CompanyProfile');
 const sendMessage = (...args) => whatsappService.sendMessage(...args);
 const sendButtonsMessage = (...args) => whatsappService.sendButtonsMessage(...args);
 const sendListMessage = (...args) => whatsappService.sendListMessage(...args);
 const sendDocumentMessage = (...args) => whatsappService.sendDocumentMessage(...args);
-const { findMatchingCompanyProfile, normalizeMobile, normalizeEmail } = require('./companyProfileService');
+const { findMatchingCompanyProfile, findCompanyProfileById, normalizeMobile, normalizeEmail } = require('./companyProfileService');
 const { createTicket } = require('./ticketService');
 const { createMachineRequest } = require('./machineRequestService');
 const { createLead, updateLeadBrochureStatus } = require('./leadService');
@@ -181,6 +180,31 @@ const getMachineOptionsFromProfile = (profile) => {
       return null;
     })
     .filter(Boolean);
+};
+
+const formatCompanyProfileSummary = (profile) => {
+  const details = profile?.rawDoc || profile || {};
+  const companyName = profile?.companyProfileName || details.companyProfileName || details.company || 'N/A';
+  const machineNames = getMachineOptionsFromProfile(details).map((machine) => machine.machineName);
+  const lines = [
+    'Thank you for verifying your details. ✅',
+    '',
+    'We found your registered profile:',
+    '',
+    `*Company:* ${companyName}`,
+    details.profileCode ? `*Profile code:* ${details.profileCode}` : null,
+    details.contactPerson ? `*Contact person:* ${details.contactPerson}` : null,
+    details.contactNumber ? `*Contact number:* ${details.contactNumber}` : null,
+    details.contactEmail ? `*Email:* ${details.contactEmail}` : null,
+    details.country ? `*Country:* ${details.country}` : null,
+    details.state ? `*State:* ${details.state}` : null,
+    details.area ? `*Area:* ${details.area}` : null,
+    machineNames.length ? `*Registered machines:* ${machineNames.join(', ')}` : null,
+    '',
+    'Is this your company profile?'
+  ];
+
+  return lines.filter((line) => line !== null).join('\n');
 };
 
 const hasExistingAMCForMachine = (machine) => {
@@ -425,13 +449,7 @@ const processIncomingMessage = async (from, messageData) => {
         district: districtName
       });
 
-      const confirmText =
-        'Thank you for verifying your details. ✅\n\n' +
-        'We found your registered profile:\n\n' +
-        `*Company:* ${companyName}\n` +
-        `*State:* ${stateName}\n` +
-        `*District/Area:* ${districtName}\n\n` +
-        'Is this your company profile?';
+      const confirmText = formatCompanyProfileSummary(profile);
 
       const buttons = [
         { id: 'confirm_profile_yes', title: 'Yes' },
@@ -482,7 +500,7 @@ const processIncomingMessage = async (from, messageData) => {
 
       if (isRaiseTicket) {
         try {
-          const companyProfile = await CompanyProfile.findById(currentState.company_profile_id).lean();
+          const companyProfile = await findCompanyProfileById(currentState.company_profile_id);
           const machineOptions = getMachineOptionsFromProfile(companyProfile);
 
           if (!machineOptions.length) {
@@ -526,7 +544,7 @@ const processIncomingMessage = async (from, messageData) => {
 
       if (isBuyAMC) {
         try {
-          const companyProfile = await CompanyProfile.findById(currentState.company_profile_id).lean();
+          const companyProfile = await findCompanyProfileById(currentState.company_profile_id);
           const machineOptions = getMachineOptionsFromProfile(companyProfile);
 
           if (!machineOptions.length) {
@@ -576,7 +594,7 @@ const processIncomingMessage = async (from, messageData) => {
     }
 
     case STATES.WAITING_AMC_MACHINE_SELECTION: {
-      const profile = currentState.company_profile || await CompanyProfile.findById(currentState.company_profile_id).lean();
+      const profile = currentState.company_profile || await findCompanyProfileById(currentState.company_profile_id);
       const machineOptions = getMachineOptionsFromProfile(profile);
 
       const selectedMachine = machineOptions.find((machine) => {
@@ -666,7 +684,7 @@ const processIncomingMessage = async (from, messageData) => {
     // RAISE A TICKET SUB-FLOW
     // ----------------------------------------------------
     case STATES.WAITING_MACHINE_SELECTION: {
-      const profile = currentState.company_profile || await CompanyProfile.findById(currentState.company_profile_id).lean();
+      const profile = currentState.company_profile || await findCompanyProfileById(currentState.company_profile_id);
       const machineOptions = getMachineOptionsFromProfile(profile);
       const selectedMachine = machineOptions.find((machine) => (
         machine.id === buttonId || machine.machineName.toLowerCase() === text.toLowerCase()
@@ -1172,5 +1190,6 @@ module.exports = {
   sendInitialGreeting,
   processIncomingMessage,
   getMachineOptionsFromProfile,
+  formatCompanyProfileSummary,
   hasExistingAMCForMachine
 };

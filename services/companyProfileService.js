@@ -37,8 +37,11 @@ const normalizeCompanyProfile = (profile) => {
   return {
     ...profile,
     companyProfileName: cleanCompany,
+    profileCode: profile.profileCode || profile.profile || '',
+    contactPerson: profile.contactPerson || profile.contact?.person || '',
     contactNumber: profile.contactNumber || profile.contact?.numbers?.[0] || profile.mobile || profile.phone || '',
     contactEmail: profile.contactEmail || profile.contact?.email || profile.email || '',
+    country: profile.country || profile.address?.country || '',
     state: profile.state || profile.address?.state || profile.region || '',
     area: profile.area || profile.address?.districtArea || profile.address?.district || '',
     machines: Array.isArray(profile.machines) ? profile.machines : (profile.machines ? [profile.machines] : [])
@@ -69,6 +72,31 @@ const findProfileInMongoDb = async (finalQuery) => {
       if (profile) return profile;
     } catch (error) {
       // Ignore collection-not-found errors and continue to the next candidate collection.
+    }
+  }
+
+  return null;
+};
+
+const findCompanyProfileById = async (id) => {
+  if (id === undefined || id === null) return null;
+
+  const db = mongoose.connection.db;
+  if (!db) return null;
+
+  const ids = [id];
+  if (typeof id === 'string' && mongoose.Types.ObjectId.isValid(id)) {
+    ids.push(new mongoose.Types.ObjectId(id));
+  }
+
+  for (const collectionName of getCompanyProfileCollectionNames()) {
+    for (const profileId of ids) {
+      try {
+        const profile = await db.collection(collectionName).findOne({ _id: profileId });
+        if (profile) return profile;
+      } catch (error) {
+        // Continue to other supported profile collections and ID formats.
+      }
     }
   }
 
@@ -152,5 +180,6 @@ module.exports = {
   normalizeMobile,
   normalizeEmail,
   normalizeCompanyProfile,
-  findMatchingCompanyProfile
+  findMatchingCompanyProfile,
+  findCompanyProfileById
 };
