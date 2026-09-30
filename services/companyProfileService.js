@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-const CompanyProfile = require('../models/CompanyProfile');
 
 /**
  * Normalize mobile number to 10 digits
@@ -63,16 +62,14 @@ const getCompanyProfileCollectionNames = () => {
 
 const findProfileInMongoDb = async (finalQuery) => {
   const db = mongoose.connection.db;
-  if (!db) return null;
+  if (!db) {
+    throw new Error('MongoDB connection is not ready');
+  }
 
   for (const collectionName of getCompanyProfileCollectionNames()) {
-    try {
-      const collection = db.collection(collectionName);
-      const profile = await collection.findOne(finalQuery);
-      if (profile) return profile;
-    } catch (error) {
-      // Ignore collection-not-found errors and continue to the next candidate collection.
-    }
+    const collection = db.collection(collectionName);
+    const profile = await collection.findOne(finalQuery);
+    if (profile) return profile;
   }
 
   return null;
@@ -146,15 +143,7 @@ const findMatchingCompanyProfile = async (mobile, email) => {
       ]
     };
 
-    let profile = await findProfileInMongoDb(finalQuery);
-
-    if (!profile) {
-      try {
-        profile = await CompanyProfile.findOne(finalQuery).lean();
-      } catch (error) {
-        profile = null;
-      }
-    }
+    const profile = await findProfileInMongoDb(finalQuery);
 
     if (!profile) {
       console.log(`🔍 Company profile search missed for mobile: ${normMobile}, email: ${normEmail}`);
@@ -172,7 +161,7 @@ const findMatchingCompanyProfile = async (mobile, email) => {
     };
   } catch (error) {
     console.error('❌ Error in findMatchingCompanyProfile:', error);
-    return null;
+    throw error;
   }
 };
 

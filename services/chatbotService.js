@@ -419,7 +419,14 @@ const processIncomingMessage = async (from, messageData) => {
       const regMobile = currentState.registered_mobile;
 
       // Lookup company profile in MongoDB
-      const profile = await findMatchingCompanyProfile(regMobile, normEmail);
+      let profile;
+      try {
+        profile = await findMatchingCompanyProfile(regMobile, normEmail);
+      } catch (error) {
+        console.error('❌ Company profile database lookup failed:', error.message);
+        await sendMessage(from, 'We are unable to access company records right now. Please try again shortly.');
+        return;
+      }
 
       if (!profile || !profile.companyProfileName) {
         const notFoundText =

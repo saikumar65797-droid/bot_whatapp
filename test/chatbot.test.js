@@ -2,7 +2,7 @@ require('dotenv').config();
 /**
  * Automated Test Suite for Upgraded WhatsApp Chatbot Logic
  */
-const { normalizeMobile, normalizeEmail, normalizeCompanyProfile } = require('../services/companyProfileService');
+const { normalizeMobile, normalizeEmail, normalizeCompanyProfile, findMatchingCompanyProfile } = require('../services/companyProfileService');
 const { STATES, processIncomingMessage, getMachineOptionsFromProfile, formatCompanyProfileSummary, hasExistingAMCForMachine } = require('../services/chatbotService');
 const { getUserState, setUserState, clearUserState } = require('../utils/userState');
 const connectDB = require('../config/mongo');
@@ -42,6 +42,18 @@ async function runTests() {
   assert(profile.profileCode === 'CP-TEST-1', 'Company profile code maps from the testing collection profile field');
   assert(profileSummary.includes('*Contact number:* 9876543210') && profileSummary.includes('*Email:* contact@example.com'), 'Verified company number and email appear in the profile summary');
   assert(profileSummary.includes('*Registered machines:* Sorter'), 'Company profile summary includes registered machines');
+
+  let databaseUnavailableReported = false;
+  const originalConsoleError = console.error;
+  console.error = () => {};
+  try {
+    await findMatchingCompanyProfile('9876543210', 'contact@example.com');
+  } catch (error) {
+    databaseUnavailableReported = error.message === 'MongoDB connection is not ready';
+  } finally {
+    console.error = originalConsoleError;
+  }
+  assert(databaseUnavailableReported, 'Company lookup reports database unavailability instead of treating it as no match');
 
   // Test 2: State Enum Checks
   assert(STATES.WAITING_CUSTOMER_TYPE === 'WAITING_CUSTOMER_TYPE', 'State WAITING_CUSTOMER_TYPE is defined');
