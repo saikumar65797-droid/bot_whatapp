@@ -405,7 +405,7 @@ const processIncomingMessage = async (from, messageData) => {
   const buttonId = messageData.buttonId || messageData.listRowId || '';
 
   const isRestartTrigger = ['hi', 'hello', 'hey', 'start', 'restart', 'menu'].includes(lowerText);
-  let currentState = getUserState(from);
+  let currentState = await getUserState(from);
 
   // If new conversation or explicit restart trigger, start at Greeting
   if (!currentState || !currentState.state || isRestartTrigger) {
@@ -527,7 +527,8 @@ const processIncomingMessage = async (from, messageData) => {
       const companyName = profile.companyProfileName;
       const stateName = profile.rawDoc.address?.state || 'N/A';
       const districtName = profile.rawDoc.address?.districtArea || profile.rawDoc.address?.district || 'N/A';
-      const profileId = profile.rawDoc._id || profile.profileCode || 'N/A';
+      // Always store profileId as a plain string so it survives state serialization / ObjectId boundaries
+      const profileId = String(profile.rawDoc._id || profile.profileCode || '');
 
       setUserState(from, {
         state: STATES.WAITING_PROFILE_CONFIRMATION,
@@ -590,11 +591,23 @@ const processIncomingMessage = async (from, messageData) => {
 
       if (isRaiseTicket) {
         try {
+          // Guard: if state was wiped (server restart), company_profile_id may be missing
+          if (!currentState.company_profile && !currentState.company_profile_id) {
+            await sendMessage(from, 'Your session has expired. Please type *Hi* to start again.');
+            clearUserState(from);
+            return;
+          }
           const companyProfile = currentState.company_profile || await findCompanyProfileById(currentState.company_profile_id);
+          if (!companyProfile) {
+            await sendMessage(from, 'Unable to load your company profile. Please type *Hi* to start again.');
+            clearUserState(from);
+            return;
+          }
           const machineOptions = getMachineOptionsFromProfile(companyProfile);
 
           if (!machineOptions.length) {
-            await sendMessage(from, 'No machines are available for this company profile. Please contact our support team for ticket assistance.');
+            console.warn(`⚠️ No machines found for profile. company_profile_id=${currentState.company_profile_id}, machines=${JSON.stringify(companyProfile?.machines)}`);
+            await sendMessage(from, 'No machines are registered under your company profile. Please contact our support team for ticket assistance.');
             clearUserState(from);
             return;
           }
@@ -634,11 +647,23 @@ const processIncomingMessage = async (from, messageData) => {
 
       if (isBuyAMC) {
         try {
+          // Guard: if state was wiped (server restart), company_profile_id may be missing
+          if (!currentState.company_profile && !currentState.company_profile_id) {
+            await sendMessage(from, 'Your session has expired. Please type *Hi* to start again.');
+            clearUserState(from);
+            return;
+          }
           const companyProfile = currentState.company_profile || await findCompanyProfileById(currentState.company_profile_id);
+          if (!companyProfile) {
+            await sendMessage(from, 'Unable to load your company profile. Please type *Hi* to start again.');
+            clearUserState(from);
+            return;
+          }
           const machineOptions = getMachineOptionsFromProfile(companyProfile);
 
           if (!machineOptions.length) {
-            await sendMessage(from, 'No machines are available for this company profile. Please contact our support team for AMC assistance.');
+            console.warn(`⚠️ No machines found for AMC. company_profile_id=${currentState.company_profile_id}, machines=${JSON.stringify(companyProfile?.machines)}`);
+            await sendMessage(from, 'No machines are registered under your company profile. Please contact our support team for AMC assistance.');
             await sendAMCContactMessage(from);
             clearUserState(from);
             return;
