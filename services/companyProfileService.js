@@ -104,7 +104,7 @@ const findCompanyProfileById = async (id) => {
     for (const profileId of ids) {
       try {
         const profile = await db.collection(collectionName).findOne({ _id: profileId });
-        if (profile) return profile;
+        if (profile) return normalizeCompanyProfile(profile);
       } catch (error) {
         // Continue to other supported profile collections and ID formats.
       }

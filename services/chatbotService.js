@@ -150,9 +150,12 @@ const sendNewCustomerRequestTypeOptions = async (from) => {
  * Handles multiple shapes, including arrays of objects and plain strings.
  */
 const getMachineOptionsFromProfile = (profile) => {
-  if (!profile || !profile.machines) return [];
+  if (!profile) return [];
 
-  const machineValues = Array.isArray(profile.machines) ? profile.machines : [profile.machines];
+  const rawMachines = profile.machines || profile.rawDoc?.machines || [];
+  if (!rawMachines) return [];
+
+  const machineValues = Array.isArray(rawMachines) ? rawMachines : [rawMachines];
 
   return machineValues
     .map((machine, index) => {
@@ -168,7 +171,9 @@ const getMachineOptionsFromProfile = (profile) => {
 
       if (typeof machine === 'object') {
         const machineId = machine.machineId || machine.id || machine._id || machine.serialNumber || `amc_machine_${index + 1}`;
-        const machineName = machine.machineName || machine.name || machine.type || machine.machineType || machine.model || `Machine ${index + 1}`;
+        const typeOrName = machine.machineName || machine.name || machine.machine || machine.machineType || machine.type || `Machine ${index + 1}`;
+        const extraDetails = [machine.model, machine.serialNumber].filter(Boolean).join(' - ');
+        const machineName = extraDetails ? `${typeOrName} (${extraDetails})` : typeOrName;
 
         return {
           id: String(machineId),
@@ -185,7 +190,8 @@ const getMachineOptionsFromProfile = (profile) => {
 const formatCompanyProfileSummary = (profile) => {
   const details = profile?.rawDoc || profile || {};
   const companyName = profile?.companyProfileName || details.companyProfileName || details.company || 'N/A';
-  const machineNames = getMachineOptionsFromProfile(details).map((machine) => machine.machineName);
+  const machineOptions = getMachineOptionsFromProfile(profile);
+  const machineNames = machineOptions.map((machine) => machine.machineName);
   const lines = [
     'Thank you for verifying your details. ✅',
     '',
@@ -525,11 +531,7 @@ const processIncomingMessage = async (from, messageData) => {
         state: STATES.WAITING_PROFILE_CONFIRMATION,
         registered_email: normEmail,
         company_profile_id: profileId,
-        company_profile: {
-          _id: profile.rawDoc._id,
-          company: companyName,
-          machines: profile.machines
-        },
+        company_profile: profile.rawDoc || profile,
         company_name: companyName,
         state_name: stateName,
         district: districtName
@@ -602,8 +604,8 @@ const processIncomingMessage = async (from, messageData) => {
 
           const rows = machineOptions.map((machine) => ({
             id: machine.id,
-            title: machine.machineName,
-            description: machine.raw.serialNumber || machine.raw.model || machine.raw.machineType || undefined
+            title: machine.machineName.slice(0, 24),
+            description: (machine.raw.serialNumber ? `S/N: ${machine.raw.serialNumber}` : (machine.raw.model || machine.raw.machineType || '')).slice(0, 72)
           }));
 
           await sendListMessage(
@@ -649,7 +651,7 @@ const processIncomingMessage = async (from, messageData) => {
             const coverage = getMachineCoverageStatus(machine.raw);
             return {
               id: machine.id,
-              title: machine.machineName,
+              title: machine.machineName.slice(0, 24),
               description: `${coverage.amcStatus}; ${coverage.warrantyStatus}`.slice(0, 72)
             };
           });
@@ -781,7 +783,10 @@ const processIncomingMessage = async (from, messageData) => {
       const profile = currentState.company_profile || await findCompanyProfileById(currentState.company_profile_id);
       const machineOptions = getMachineOptionsFromProfile(profile);
       const selectedMachine = machineOptions.find((machine) => (
-        machine.id === buttonId || machine.machineName.toLowerCase() === text.toLowerCase()
+        machine.id === buttonId ||
+        machine.machineName.toLowerCase() === text.toLowerCase() ||
+        (machine.raw.serialNumber && text.toLowerCase().includes(machine.raw.serialNumber.toLowerCase())) ||
+        (machine.raw.model && text.toLowerCase().includes(machine.raw.model.toLowerCase()))
       ));
 
       if (!selectedMachine) {
@@ -793,8 +798,8 @@ const processIncomingMessage = async (from, messageData) => {
 
         const rows = machineOptions.map((machine) => ({
           id: machine.id,
-          title: machine.machineName,
-          description: machine.raw.serialNumber || machine.raw.model || machine.raw.machineType || undefined
+          title: machine.machineName.slice(0, 24),
+          description: (machine.raw.serialNumber ? `S/N: ${machine.raw.serialNumber}` : (machine.raw.model || machine.raw.machineType || '')).slice(0, 72)
         }));
         await sendListMessage(
           from,
