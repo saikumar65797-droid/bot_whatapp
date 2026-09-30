@@ -136,11 +136,11 @@ const findMatchingCompanyProfile = async (mobile, email) => {
       $and: [
         {
           $or: [
-            { contactNumber: { $regex: new RegExp(`^${clean10}$`, 'i') } },
-            { contactNumber: { $regex: new RegExp(`^${phonePattern}$`, 'i') } },
+            { contactNumber: { $regex: new RegExp(clean10, 'i') } },
+            { contactNumber: phoneRegex },
             { contactNumber: normMobile },
-            { contactPerson: { $regex: new RegExp(`^${clean10}$`, 'i') } },
-            { contactPerson: { $regex: new RegExp(`^${phonePattern}$`, 'i') } },
+            { contactPerson: { $regex: new RegExp(clean10, 'i') } },
+            { contactPerson: phoneRegex },
             { contactPerson: normMobile },
             { 'contact.numbers': phoneRegex },
             { 'contact.numbers': normMobile },
