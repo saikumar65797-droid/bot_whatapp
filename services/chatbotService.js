@@ -152,7 +152,9 @@ const sendNewCustomerRequestTypeOptions = async (from) => {
 const getMachineOptionsFromProfile = (profile) => {
   if (!profile) return [];
 
-  const rawMachines = profile.machines || profile.rawDoc?.machines || [];
+  const rawMachines = (profile.machines && profile.machines.length > 0)
+    ? profile.machines
+    : (profile.machinesSold || profile.registeredMachines || profile.equipment || profile.machine || profile.rawDoc?.machines || profile.machines || []);
   if (!rawMachines) return [];
 
   const machineValues = Array.isArray(rawMachines) ? rawMachines : [rawMachines];

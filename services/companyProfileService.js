@@ -47,6 +47,10 @@ const normalizeCompanyProfile = (profile) => {
     ? (storedContactNumber && !isPhoneNumber(storedContactNumber) ? storedContactNumber : '')
     : storedContactPerson;
 
+  const rawMachines = (profile.machines && profile.machines.length > 0)
+    ? profile.machines
+    : (profile.machinesSold || profile.registeredMachines || profile.equipment || profile.machine || profile.machines || []);
+
   return {
     ...profile,
     companyProfileName: cleanCompany,
@@ -57,7 +61,7 @@ const normalizeCompanyProfile = (profile) => {
     country: profile.country || profile.address?.country || '',
     state: profile.state || profile.address?.state || profile.region || '',
     area: profile.area || profile.address?.districtArea || profile.address?.district || '',
-    machines: Array.isArray(profile.machines) ? profile.machines : (profile.machines ? [profile.machines] : [])
+    machines: Array.isArray(rawMachines) ? rawMachines : (rawMachines ? [rawMachines] : [])
   };
 };
 
