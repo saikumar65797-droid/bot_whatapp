@@ -525,6 +525,11 @@ const processIncomingMessage = async (from, messageData) => {
         state: STATES.WAITING_PROFILE_CONFIRMATION,
         registered_email: normEmail,
         company_profile_id: profileId,
+        company_profile: {
+          _id: profile.rawDoc._id,
+          company: companyName,
+          machines: profile.machines
+        },
         company_name: companyName,
         state_name: stateName,
         district: districtName
@@ -581,7 +586,7 @@ const processIncomingMessage = async (from, messageData) => {
 
       if (isRaiseTicket) {
         try {
-          const companyProfile = await findCompanyProfileById(currentState.company_profile_id);
+          const companyProfile = currentState.company_profile || await findCompanyProfileById(currentState.company_profile_id);
           const machineOptions = getMachineOptionsFromProfile(companyProfile);
 
           if (!machineOptions.length) {
@@ -625,7 +630,7 @@ const processIncomingMessage = async (from, messageData) => {
 
       if (isBuyAMC) {
         try {
-          const companyProfile = await findCompanyProfileById(currentState.company_profile_id);
+          const companyProfile = currentState.company_profile || await findCompanyProfileById(currentState.company_profile_id);
           const machineOptions = getMachineOptionsFromProfile(companyProfile);
 
           if (!machineOptions.length) {
