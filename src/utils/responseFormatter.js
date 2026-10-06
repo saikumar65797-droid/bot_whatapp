@@ -10,12 +10,12 @@ function textMessage(to, text) {
 }
 
 function interactiveButtons(to, bodyText, buttons) {
-  // WhatsApp allows max 3 buttons
+  // WhatsApp allows max 3 buttons, and titles must be max 20 chars
   const formattedButtons = buttons.slice(0, 3).map((btn, index) => ({
     type: 'reply',
     reply: {
       id: btn.id || `btn_${index}`,
-      title: btn.title
+      title: btn.title.substring(0, 20)
     }
   }));
 

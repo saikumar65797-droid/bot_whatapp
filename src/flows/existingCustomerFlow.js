@@ -22,7 +22,7 @@ async function handleExistingCustomerFlow(session, textMsg, from) {
           'We could not find a company profile with this mobile number.\n\nPlease verify the number and try again.',
           [
             { id: 'try_again', title: 'TRY AGAIN' },
-            { id: 'use_serial', title: 'USE MACHINE SERIAL NUMBER' },
+            { id: 'use_serial', title: 'USE SERIAL NUMBER' },
             { id: 'contact_support', title: 'CONTACT SUPPORT' }
           ]
         ));
