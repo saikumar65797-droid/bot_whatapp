@@ -19,15 +19,9 @@ app.use(express.urlencoded({ extended: true }));
 // Trust proxy for Render/Heroku deployments (required for rate limiting)
 app.set('trust proxy', true);
 
-// Rate Limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5000, // Increased limit because Meta can send huge bursts of retries
-  message: 'Too many requests from this IP, please try again later.',
-});
-
-// Apply rate limiter to webhook endpoint
-app.use('/webhook', limiter, webhookRoutes);
+// Removed rate limiter because Meta webhooks can burst and proxy settings cause crashes
+// app.use('/webhook', limiter, webhookRoutes);
+app.use('/webhook', webhookRoutes);
 
 // Root route for simple verification in browser
 app.get('/', (req, res) => {
