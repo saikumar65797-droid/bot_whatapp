@@ -16,6 +16,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Trust proxy for Render/Heroku deployments (required for rate limiting)
+app.set('trust proxy', 1);
+
 // Rate Limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -25,6 +28,11 @@ const limiter = rateLimit({
 
 // Apply rate limiter to webhook endpoint
 app.use('/webhook', limiter, webhookRoutes);
+
+// Root route for simple verification in browser
+app.get('/', (req, res) => {
+  res.send('Sruthi Technologies WhatsApp Chatbot is running! 🚀');
+});
 
 // Health check endpoint
 app.get('/health', (req, res) => {
