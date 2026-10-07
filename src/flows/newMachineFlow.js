@@ -77,8 +77,7 @@ async function finishMachineRequest(from, session, type, model, chutes) {
   const msg = `Thank you for your requirement.\n\nOur team will contact you regarding the new machine.\n\nPhone: ${env.supportPhone}\nEmail: ${env.supportEmail}\nWebsite: ${env.websiteUrl}`;
   await whatsappService.sendMessage(documentMessage(from, env.brochureUrl, 'Sruthi_Technologies_Brochure.pdf', msg));
 
-  await sessionService.updateSession(from, { state: 'MAIN_MENU' });
-  await sendMainMenu(from);
+  await sessionService.clearSession(from);
 }
 
 module.exports = {
