@@ -59,6 +59,8 @@ async function handleTicketFlow(session, textMsg, from) {
           const activeW = m?.contract?.type === 'Warranty' && isContractActive(m.contract.startDate, m.contract.endDate);
           if (!activeW) {
             await whatsappService.sendMessage(textMessage(from, 'For this machine, there is no active warranty.'));
+            await askCallType(from);
+            break;
           } else {
             await whatsappService.sendMessage(textMessage(from, `Active Warranty\nDuration: ${m.contract.duration}\nValid From: ${formatDate(m.contract.startDate)}\nValid Until: ${formatDate(m.contract.endDate)}`));
           }
@@ -66,6 +68,8 @@ async function handleTicketFlow(session, textMsg, from) {
           const activeA = m?.contract?.type === 'AMC' && isContractActive(m.contract.startDate, m.contract.endDate);
           if (!activeA) {
             await whatsappService.sendMessage(textMessage(from, 'For this machine, there is no active AMC.'));
+            await askCallType(from);
+            break;
           } else {
             await whatsappService.sendMessage(textMessage(from, `Active AMC found.\nValid From: ${formatDate(m.contract.startDate)}\nValid Until: ${formatDate(m.contract.endDate)}\nAvailable Visits: ${m.contract.visits}`));
           }
