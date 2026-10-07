@@ -155,9 +155,6 @@ class WhatsAppController {
       } else if (val === 'new_machine' || val === 'request a new machine' || val === '3') {
         await sessionService.updateSession(from, { state: 'NEW_MACHINE_TYPE' });
         await newMachineFlow.askMachineType(from);
-      } else if (val === 'enquiry' || val === '4') {
-        await sessionService.updateSession(from, { state: 'ENQUIRY_TYPE' });
-        await enquiryFlow.askEnquiryType(from);
       } else {
         await existingCustomerFlow.sendMainMenu(from);
       }

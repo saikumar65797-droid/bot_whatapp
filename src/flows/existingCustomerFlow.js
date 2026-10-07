@@ -122,8 +122,7 @@ async function sendMainMenu(from) {
     rows: [
       { id: 'raise_ticket', title: 'Raise a Ticket' },
       { id: 'buy_amc', title: 'Buy / Renew AMC' },
-      { id: 'new_machine', title: 'Request a New Machine' },
-      { id: 'enquiry', title: 'Enquiry' }
+      { id: 'new_machine', title: 'Request a New Machine' }
     ]
   }];
   
