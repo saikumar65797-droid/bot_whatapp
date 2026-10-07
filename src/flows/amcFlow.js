@@ -4,6 +4,7 @@ const companyService = require('../services/companyService');
 const amcService = require('../services/amcService');
 const { textMessage, interactiveButtons, interactiveList } = require('../utils/responseFormatter');
 const { isContractActive, formatDate } = require('../utils/dateUtils');
+const env = require('../config/env');
 const { showSupport, sendMainMenu } = require('./existingCustomerFlow');
 const AMC_PLANS = require('../config/amcPlans');
 
@@ -27,6 +28,7 @@ async function handleAmcFlow(session, textMsg, from) {
             const usedV = selected.contract.usedVisits || 0;
             const leftV = totalV - usedV;
             await whatsappService.sendMessage(textMessage(from, `Selected machine already has an active AMC.\n\nAMC Valid From: ${formatDate(selected.contract.startDate)}\nAMC Valid Until: ${formatDate(selected.contract.endDate)}\nTotal Visits: ${totalV}\nUsed Visits: ${usedV}\nLeft Visits: ${leftV}`));
+            await whatsappService.sendMessage(textMessage(from, `Thank you for contacting us.\n\nPhone: ${env.supportPhone}\nEmail: ${env.supportEmail}\nWebsite: ${env.websiteUrl}`));
             await sessionService.clearSession(from);
           } else {
             await sessionService.updateSession(from, { 
