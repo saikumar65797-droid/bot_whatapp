@@ -16,8 +16,7 @@ async function handleAmcFlow(session, textMsg, from) {
       if (machines.length === 0) {
         await whatsappService.sendMessage(textMessage(from, 'No machines are registered under your company profile.\n\nPlease contact our support team.'));
         await showSupport(from);
-        await sessionService.updateSession(from, { state: 'MAIN_MENU' });
-        await sendMainMenu(from);
+        await sessionService.clearSession(from);
       } else {
         const selected = machines.find(m => m.id === textMsg || m.serialNumber === textMsg);
         if (selected) {
@@ -28,8 +27,7 @@ async function handleAmcFlow(session, textMsg, from) {
             const usedV = selected.contract.usedVisits || 0;
             const leftV = totalV - usedV;
             await whatsappService.sendMessage(textMessage(from, `Selected machine already has an active AMC.\n\nAMC Valid From: ${formatDate(selected.contract.startDate)}\nAMC Valid Until: ${formatDate(selected.contract.endDate)}\nTotal Visits: ${totalV}\nUsed Visits: ${usedV}\nLeft Visits: ${leftV}`));
-            await sessionService.updateSession(from, { state: 'MAIN_MENU' });
-            await sendMainMenu(from);
+            await sessionService.clearSession(from);
           } else {
             await sessionService.updateSession(from, { 
               selectedMachineId: selected.id,
@@ -89,8 +87,7 @@ async function handleAmcFlow(session, textMsg, from) {
       } else {
         await whatsappService.sendMessage(textMessage(from, 'No problem.\n\nIf you need AMC assistance in the future, please contact us.'));
       }
-      await sessionService.updateSession(from, { state: 'MAIN_MENU' });
-      await sendMainMenu(from);
+      await sessionService.clearSession(from);
       break;
   }
 }
