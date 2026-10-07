@@ -71,7 +71,10 @@ async function handleTicketFlow(session, textMsg, from) {
             await askCallType(from);
             break;
           } else {
-            await whatsappService.sendMessage(textMessage(from, `Active AMC found.\nValid From: ${formatDate(m.contract.startDate)}\nValid Until: ${formatDate(m.contract.endDate)}\nAvailable Visits: ${m.contract.visits}`));
+            const totalV = m.contract.visits || 0;
+            const usedV = m.contract.usedVisits || 0;
+            const leftV = totalV - usedV;
+            await whatsappService.sendMessage(textMessage(from, `Active AMC found.\nValid From: ${formatDate(m.contract.startDate)}\nValid Until: ${formatDate(m.contract.endDate)}\nTotal Visits: ${totalV}\nUsed Visits: ${usedV}\nLeft Visits: ${leftV}`));
           }
         }
         

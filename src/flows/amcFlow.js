@@ -24,7 +24,10 @@ async function handleAmcFlow(session, textMsg, from) {
           // Check existing AMC
           const activeAMC = selected.contract?.type === 'AMC' && isContractActive(selected.contract.startDate, selected.contract.endDate);
           if (activeAMC) {
-            await whatsappService.sendMessage(textMessage(from, `Selected machine already has an active AMC.\n\nAMC Valid From: ${formatDate(selected.contract.startDate)}\nAMC Valid Until: ${formatDate(selected.contract.endDate)}\nAvailable Visits: ${selected.contract.visits}`));
+            const totalV = selected.contract.visits || 0;
+            const usedV = selected.contract.usedVisits || 0;
+            const leftV = totalV - usedV;
+            await whatsappService.sendMessage(textMessage(from, `Selected machine already has an active AMC.\n\nAMC Valid From: ${formatDate(selected.contract.startDate)}\nAMC Valid Until: ${formatDate(selected.contract.endDate)}\nTotal Visits: ${totalV}\nUsed Visits: ${usedV}\nLeft Visits: ${leftV}`));
             await sessionService.updateSession(from, { state: 'MAIN_MENU' });
             await sendMainMenu(from);
           } else {
