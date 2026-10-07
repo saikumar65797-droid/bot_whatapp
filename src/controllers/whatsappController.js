@@ -82,8 +82,8 @@ class WhatsAppController {
 
           // Global commands
           const globalCommand = textMsg.toLowerCase().trim();
-          if (['menu', 'back', 'cancel', 'help', 'restart'].includes(globalCommand)) {
-            if (globalCommand === 'cancel' || globalCommand === 'restart') {
+          if (['menu', 'back', 'cancel', 'help', 'restart', 'hi', 'hello', 'hey'].includes(globalCommand)) {
+            if (['cancel', 'restart', 'hi', 'hello', 'hey'].includes(globalCommand)) {
               await sessionService.clearSession(from);
               session = await sessionService.getSession(from); // Refresh state to START
             } else if (globalCommand === 'menu' && session.companyProfileId) {
