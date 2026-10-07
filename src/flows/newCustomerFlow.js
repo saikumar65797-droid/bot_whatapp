@@ -1,7 +1,7 @@
 const sessionService = require('../services/sessionService');
 const whatsappService = require('../services/whatsappService');
 const machineRequestService = require('../services/machineRequestService');
-const { textMessage, interactiveList } = require('../utils/responseFormatter');
+const { textMessage, interactiveList, documentMessage } = require('../utils/responseFormatter');
 const env = require('../config/env');
 const { MACHINE_TYPES, SORTER_MODELS, askMachineType, askMachineModel, askChutes } = require('./newMachineFlow');
 
@@ -106,8 +106,8 @@ async function finishNewCustomerRequest(from, session, type, model, chutes) {
     chutes: chutes
   });
 
-  const msg = `Thank you for contacting Sruthi Technologies.\n\nOur team will contact you shortly regarding your requirement.\n\nPhone: ${env.supportPhone}\nEmail: ${env.supportEmail}\nWebsite: ${env.websiteUrl}\nBrochure: ${env.brochureUrl}`;
-  await whatsappService.sendMessage(textMessage(from, msg));
+  const msg = `Thank you for contacting Sruthi Technologies.\n\nOur team will contact you shortly regarding your requirement.\n\nPhone: ${env.supportPhone}\nEmail: ${env.supportEmail}\nWebsite: ${env.websiteUrl}`;
+  await whatsappService.sendMessage(documentMessage(from, env.brochureUrl, 'Sruthi_Technologies_Brochure.pdf', msg));
 
   await sessionService.clearSession(from);
 }

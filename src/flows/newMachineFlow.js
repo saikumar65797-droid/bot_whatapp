@@ -1,7 +1,7 @@
 const sessionService = require('../services/sessionService');
 const whatsappService = require('../services/whatsappService');
 const machineRequestService = require('../services/machineRequestService');
-const { textMessage, interactiveList } = require('../utils/responseFormatter');
+const { textMessage, interactiveList, documentMessage } = require('../utils/responseFormatter');
 const env = require('../config/env');
 const { sendMainMenu } = require('./existingCustomerFlow');
 
@@ -74,8 +74,8 @@ async function finishMachineRequest(from, session, type, model, chutes) {
     chutes: chutes
   });
 
-  const msg = `Thank you for your requirement.\n\nOur team will contact you regarding the new machine.\n\nPhone: ${env.supportPhone}\nEmail: ${env.supportEmail}\nWebsite: ${env.websiteUrl}\nBrochure: ${env.brochureUrl}`;
-  await whatsappService.sendMessage(textMessage(from, msg));
+  const msg = `Thank you for your requirement.\n\nOur team will contact you regarding the new machine.\n\nPhone: ${env.supportPhone}\nEmail: ${env.supportEmail}\nWebsite: ${env.websiteUrl}`;
+  await whatsappService.sendMessage(documentMessage(from, env.brochureUrl, 'Sruthi_Technologies_Brochure.pdf', msg));
 
   await sessionService.updateSession(from, { state: 'MAIN_MENU' });
   await sendMainMenu(from);

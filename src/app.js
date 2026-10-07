@@ -15,6 +15,7 @@ connectDB();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use('/public', express.static('public'));
 
 // Trust proxy for Render/Heroku deployments (required for rate limiting)
 app.set('trust proxy', true);

@@ -50,8 +50,25 @@ function interactiveList(to, bodyText, buttonText, sections) {
   };
 }
 
+function documentMessage(to, documentUrl, filename, caption) {
+  const payload = {
+    messaging_product: 'whatsapp',
+    to,
+    type: 'document',
+    document: {
+      link: documentUrl,
+      filename: filename || 'document.pdf'
+    }
+  };
+  if (caption) {
+    payload.document.caption = caption;
+  }
+  return payload;
+}
+
 module.exports = {
   textMessage,
   interactiveButtons,
-  interactiveList
+  interactiveList,
+  documentMessage
 };
