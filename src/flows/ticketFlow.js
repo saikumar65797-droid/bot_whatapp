@@ -98,14 +98,14 @@ async function handleTicketFlow(session, textMsg, from) {
       if (validPrios.includes(textMsg) || validPrios.some(p => p.toLowerCase() === textMsg.toLowerCase())) {
         const prioStr = validPrios.find(p => p.toLowerCase() === textMsg.toLowerCase()) || textMsg;
         await sessionService.updateSession(from, { priority: prioStr, state: 'ENTER_DESCRIPTION' });
-        await whatsappService.sendMessage(textMessage(from, 'Please enter a description of the issue.\n\nThis is optional. Type SKIP or select SKIP button if you do not wish to add one.'));
+        await whatsappService.sendMessage(textMessage(from, 'Please enter a description of the issue.'));
       } else {
         await askPriority(from);
       }
       break;
 
     case 'ENTER_DESCRIPTION':
-      const desc = (textMsg.toLowerCase() === 'skip') ? 'No description' : textMsg;
+      const desc = textMsg;
       const finalSession = await sessionService.updateSession(from, { description: desc, state: 'TICKET_CONFIRMATION' });
       
       const selMachine = machines.find(mac => mac.serialNumber === finalSession.selectedMachineSerialNumber);
