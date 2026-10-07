@@ -101,7 +101,7 @@ async function handleExistingCustomerFlow(session, textMsg, from) {
 }
 
 async function sendProfileConfirmation(from, company) {
-  const msg = `Thank you. We found your company profile.\n\nCompany Profile: ${company.company || ''}\nContact Person: ${company.contactPerson || ''}\nCountry: ${company.country || ''}\nState: ${company.state || ''}\nArea: ${company.area || ''}\n\nIs this your company profile?`;
+  const msg = `Thank you. We found your company profile.\n\n*Company Profile:* ${company.company || ''}\n*Contact Person:* ${company.contactPerson || ''}\n*Country:* ${company.country || ''}\n*State:* ${company.state || ''}\n*Area:* ${company.area || ''}\n\nIs this your company profile?`;
   await whatsappService.sendMessage(interactiveButtons(from, msg, [
     { id: 'yes', title: 'YES' },
     { id: 'no', title: 'NO' }
