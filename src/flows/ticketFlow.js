@@ -18,14 +18,7 @@ async function handleTicketFlow(session, textMsg, from) {
         await showSupport(from);
         await sessionService.updateSession(from, { state: 'MAIN_MENU' });
         await sendMainMenu(from);
-      } else if (machines.length === 1) {
-        // Auto select the only machine
-        await sessionService.updateSession(from, { 
-          selectedMachineId: machines[0].id,
-          selectedMachineSerialNumber: machines[0].serialNumber,
-          state: 'SELECT_CALL_TYPE'
-        });
-        await askCallType(from);
+
       } else {
         // Find if user selected a machine from list (list replies pass ID as textMsg if we map it, but let's assume textMsg is ID from list row)
         // If they haven't selected yet, we show the list.
