@@ -134,12 +134,10 @@ async function handleTicketFlow(session, textMsg, from) {
         } else {
           await whatsappService.sendMessage(textMessage(from, 'Sorry, we could not create your ticket right now.\n\nPlease contact our support team.'));
         }
-        await sendMainMenu(from);
-        await sessionService.updateSession(from, { state: 'MAIN_MENU' });
+        await sessionService.clearSession(from);
       } else {
         await whatsappService.sendMessage(textMessage(from, 'Ticket creation cancelled.'));
-        await sendMainMenu(from);
-        await sessionService.updateSession(from, { state: 'MAIN_MENU' });
+        await sessionService.clearSession(from);
       }
       break;
   }
