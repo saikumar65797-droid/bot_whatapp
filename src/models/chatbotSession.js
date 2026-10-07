@@ -5,7 +5,7 @@ const ChatbotSessionSchema = new mongoose.Schema({
   state: { type: String, required: true, default: 'START' },
   
   // Verification Data
-  companyProfileId: { type: mongoose.Schema.Types.ObjectId },
+  companyProfileId: { type: String },
   profileCode: { type: String },
   company: { type: String },
   verifiedBy: { type: String, enum: ['MOBILE_EMAIL', 'SERIAL_NUMBER'] },

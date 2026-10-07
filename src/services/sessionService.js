@@ -20,7 +20,7 @@ class SessionService {
       return await ChatbotSession.findOneAndUpdate(
         { whatsappNumber },
         { $set: updateData },
-        { new: true, upsert: true }
+        { returnDocument: 'after', upsert: true }
       );
     } catch (error) {
       logger.error(`Error updating session for ${logger.maskNumber(whatsappNumber)}: ${error.message}`);
@@ -58,7 +58,7 @@ class SessionService {
             enquiryDescription: 1
           }
         },
-        { new: true }
+        { returnDocument: 'after' }
       );
     } catch (error) {
       logger.error(`Error clearing session for ${logger.maskNumber(whatsappNumber)}: ${error.message}`);

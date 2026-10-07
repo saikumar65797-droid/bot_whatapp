@@ -62,13 +62,7 @@ async function askMachineModel(from) {
 }
 
 async function askChutes(from) {
-  const rows = Array.from({ length: 14 }, (_, i) => ({ id: `${i + 1}`, title: `${i + 1} Chutes` }));
-  // WhatsApp lists can have max 10 rows per section, we must split it.
-  const sections = [
-    { title: '1-7 Chutes', rows: rows.slice(0, 7) },
-    { title: '8-14 Chutes', rows: rows.slice(7, 14) }
-  ];
-  await whatsappService.sendMessage(interactiveList(from, 'Please select the number of chutes.', 'Chutes', sections));
+  await whatsappService.sendMessage(textMessage(from, 'Please enter the number of chutes (1-14).'));
 }
 
 async function finishMachineRequest(from, session, type, model, chutes) {

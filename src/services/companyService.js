@@ -70,10 +70,15 @@ class CompanyService {
 
   async getCompanyById(id) {
     try {
-      if (!mongoose.Types.ObjectId.isValid(id)) return null;
-      
       const collection = this.getCollection();
-      return await collection.findOne({ _id: new mongoose.Types.ObjectId(id) });
+      
+      let result = await collection.findOne({ _id: id });
+      
+      if (!result && mongoose.Types.ObjectId.isValid(id)) {
+        result = await collection.findOne({ _id: new mongoose.Types.ObjectId(id) });
+      }
+      
+      return result;
     } catch (error) {
       logger.error('Error in getCompanyById:', error.message);
       return null;
