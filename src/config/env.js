@@ -8,6 +8,7 @@ module.exports = {
   mongoUri: process.env.MONGODB_URI,
   mongoDbName: process.env.MONGODB_DB,
   companyProfileCollection: process.env.COMPANY_PROFILE_COLLECTION || 'companyProfiles_testing',
+  ticketCollection: process.env.TICKET_COLLECTION || 'chatbot_tickets',
   brochureUrl: process.env.BROCHURE_URL,
   supportPhone: process.env.SUPPORT_PHONE || '+911234567890',
   supportEmail: process.env.SUPPORT_EMAIL || 'support@sruthitechnologies.com',

@@ -1,10 +1,11 @@
 const mongoose = require('mongoose');
 const logger = require('../utils/logger');
 const companyService = require('./companyService');
+const env = require('../config/env');
 
 function generateTicketId() {
   const chars = '0123456789abcdefghijklmnopqrstuvwxyz';
-  let str = '';1
+  let str = '';
   for (let i = 0; i < 10; i++) {
     str += chars.charAt(Math.floor(Math.random() * chars.length));
   }
@@ -41,13 +42,18 @@ const normalizeVal = (val) => {
 };
 
 class TicketService {
+  getCollectionName() {
+    return env.ticketCollection || 'chatbot_tickets';
+  }
+
   async getNextTicketNumber() {
     const currentYear = new Date().getFullYear();
+    const collectionName = this.getCollectionName();
     try {
       const reg = new RegExp(`^SVC-${currentYear}-(\\d+)`);
 
-      // Read highest ticketNumber from ccms_tickets (Read-Only)
-      let lastTicket = await mongoose.connection.collection('ccms_tickets').findOne(
+      // Read highest ticketNumber from chatbot_tickets (Read-Only)
+      let lastTicket = await mongoose.connection.collection(collectionName).findOne(
         { ticketNumber: reg },
         { sort: { ticketNumber: -1 } }
       );
@@ -80,8 +86,9 @@ class TicketService {
 
   async createTicket(ticketData) {
     try {
-      // Strictly write ONLY to ccms_tickets collection
-      const collection = mongoose.connection.collection('ccms_tickets');
+      // Strictly write ONLY to chatbot_tickets collection
+      const collectionName = this.getCollectionName();
+      const collection = mongoose.connection.collection(collectionName);
 
       // Resolve company profile if not passed directly (Read-Only)
       let company = ticketData.company;
@@ -104,7 +111,7 @@ class TicketService {
       const description = normalizeVal(ticketData.description);
       const issue = normalizeVal(ticketData.issue) || description;
 
-      // Exact schema matching the screenshot keys without any extra keys
+      // Exact schema matching the requested document format without any extra keys
       const payload = {
         _id: ticketId,
         ticketNumber: ticketNumber,
@@ -150,7 +157,7 @@ class TicketService {
       };
 
       const result = await collection.insertOne(payload);
-      logger.info(`Ticket created in ccms_tickets: ${ticketNumber} (${ticketId})`);
+      logger.info(`Ticket created in ${collectionName}: ${ticketNumber} (${ticketId})`);
 
       return {
         success: true,
