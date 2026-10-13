@@ -46,8 +46,8 @@ class TicketService {
     try {
       const reg = new RegExp(`^SVC-${currentYear}-(\\d+)`);
 
-      // Read highest ticketNumber from ccms_tickets (Read-Only)
-      const lastTicket = await mongoose.connection.collection('ccms_tickets').findOne(
+      // Read highest ticketNumber from chatbot_tickets (Read-Only)
+      const lastTicket = await mongoose.connection.collection('chatbot_tickets').findOne(
         { ticketNumber: reg },
         { sort: { ticketNumber: -1 } }
       );
@@ -72,8 +72,8 @@ class TicketService {
 
   async createTicket(ticketData) {
     try {
-      // Strictly write ONLY to ccms_tickets collection
-      const collection = mongoose.connection.collection('ccms_tickets');
+      // Strictly write ONLY to chatbot_tickets collection
+      const collection = mongoose.connection.collection('chatbot_tickets');
 
       // Resolve company profile if not passed directly (Read-Only)
       let company = ticketData.company;
@@ -142,7 +142,7 @@ class TicketService {
       };
 
       const result = await collection.insertOne(payload);
-      logger.info(`Ticket created in ccms_tickets: ${ticketNumber} (${ticketId})`);
+      logger.info(`Ticket created in chatbot_tickets: ${ticketNumber} (${ticketId})`);
 
       return {
         success: true,
