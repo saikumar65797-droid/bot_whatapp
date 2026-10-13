@@ -133,7 +133,9 @@ async function handleTicketFlow(session, textMsg, from) {
           callType: session.callType,
           category: session.category,
           priority: session.priority,
-          description: session.description
+          description: session.description,
+          company,
+          machine: selM
         });
         
         if (res.success) {

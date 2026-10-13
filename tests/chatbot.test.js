@@ -38,7 +38,7 @@ describe('WhatsApp Chatbot Webhook Tests', () => {
               messages: [
                 {
                   from,
-                  id: 'wamid.HBgLMTIzNDU2Nzg5MDAQABs',
+                  id: 'wamid.' + Date.now() + Math.random().toString(36),
                   type: 'text',
                   text: {
                     body: text
