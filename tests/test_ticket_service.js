@@ -35,9 +35,9 @@ async function runTest() {
     process.exit(1);
   }
 
-  // Fetch the inserted document directly from chatbot_tickets
-  const insertedDoc1 = await mongoose.connection.collection('chatbot_tickets').findOne({ _id: res1.id });
-  console.log('\nFetched document from chatbot_tickets:');
+  // Fetch the inserted document directly from ccms_tickets
+  const insertedDoc1 = await mongoose.connection.collection('ccms_tickets').findOne({ _id: res1.id });
+  console.log('\nFetched document from ccms_tickets:');
   console.log(JSON.stringify(insertedDoc1, null, 2));
 
   // Assertions for full ticket
@@ -83,8 +83,8 @@ async function runTest() {
   console.log('Minimal Ticket creation result:', res2.success ? 'SUCCESS' : 'FAILED');
   console.log('Minimal Ticket Number:', res2.ticketNumber);
 
-  const insertedDoc2 = await mongoose.connection.collection('chatbot_tickets').findOne({ _id: res2.id });
-  console.log('\nFetched minimal document from chatbot_tickets:');
+  const insertedDoc2 = await mongoose.connection.collection('ccms_tickets').findOne({ _id: res2.id });
+  console.log('\nFetched minimal document from ccms_tickets:');
   console.log(JSON.stringify(insertedDoc2, null, 2));
 
   console.log('\nValidating null fields on minimal ticket:');
@@ -114,10 +114,10 @@ async function runTest() {
   console.log('✅ Minimal ticket null-placement validation passed!');
 
   // Clean up test documents
-  await mongoose.connection.collection('chatbot_tickets').deleteMany({
+  await mongoose.connection.collection('ccms_tickets').deleteMany({
     _id: { $in: [res1.id, res2.id] }
   });
-  console.log('\nCleaned up test tickets from chatbot_tickets.');
+  console.log('\nCleaned up test tickets from ccms_tickets.');
 
   console.log('\nALL TESTS PASSED SUCCESSFULLY! 🎉');
   process.exit(0);
